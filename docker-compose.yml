@@ -14,41 +14,18 @@ services:
       timeout: 3s
       retries: 5
 
-  orchestrator-1:
+  orchestrator:
     build: .
+    env_file:
+      - .env
     environment:
       - REDIS_URL=redis://redis:6379
       - RUNPOD_API_KEY=${RUNPOD_API_KEY}
       - RUNPOD_ENDPOINT_ID=${RUNPOD_ENDPOINT_ID}
-      - NUM_INSTANCES=3
     depends_on:
       redis:
         condition: service_healthy
-    command: npm run example:multi-instance
-
-  orchestrator-2:
-    build: .
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - RUNPOD_API_KEY=${RUNPOD_API_KEY}
-      - RUNPOD_ENDPOINT_ID=${RUNPOD_ENDPOINT_ID}
-      - NUM_INSTANCES=3
-    depends_on:
-      redis:
-        condition: service_healthy
-    command: npm run example:multi-instance
-
-  orchestrator-3:
-    build: .
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - RUNPOD_API_KEY=${RUNPOD_API_KEY}
-      - RUNPOD_ENDPOINT_ID=${RUNPOD_ENDPOINT_ID}
-      - NUM_INSTANCES=3
-    depends_on:
-      redis:
-        condition: service_healthy
-    command: npm run example:multi-instance
+    command: npm run example:basic
 
 volumes:
   redis_data:

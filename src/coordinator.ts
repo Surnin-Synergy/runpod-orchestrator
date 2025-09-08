@@ -129,8 +129,11 @@ export class Coordinator extends EventEmitter {
 
   private async handleSubmittedJob(job: JobRecord, lockToken: string): Promise<void> {
     try {
+      // Parse input if it's a string (when persistInput is enabled)
+      const input = typeof job.input === 'string' ? JSON.parse(job.input) : job.input;
+      
       // Submit to Runpod
-      const runpodResponse = await this.runpodClient.run(job.input);
+      const runpodResponse = await this.runpodClient.run(input);
       
       // Update job with Runpod ID and transition to QUEUED
       const success = await this.redisUtils.transitionJobState(

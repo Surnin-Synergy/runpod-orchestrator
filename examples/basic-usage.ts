@@ -1,4 +1,11 @@
+import { config } from "dotenv";
 import { createOrchestrator } from "../src/index";
+
+// Load environment variables from .env file
+config();
+
+const ENDPOINT_ID =
+  process.env.RUNPOD_ENDPOINT_ID || "black-forest-labs-flux-1-schnell";
 
 async function main() {
   // Create orchestrator instance
@@ -6,7 +13,7 @@ async function main() {
     redis: { url: process.env.REDIS_URL || "redis://localhost:6379" },
     runpod: {
       apiKey: process.env.RUNPOD_API_KEY!,
-      endpointId: process.env.RUNPOD_ENDPOINT_ID!,
+      endpointId: ENDPOINT_ID,
     },
     polling: {
       initialBackoffMs: 2000,
@@ -51,9 +58,15 @@ async function main() {
     const job1 = await orchestrator.submit({
       clientJobId: `job-${Date.now()}-1`,
       input: {
-        prompt: "Generate a beautiful landscape painting",
-        style: "impressionist",
-        size: "1024x1024",
+        prompt:
+          "A lone snowboarder carving down an untouched powder slope; the trail behind them disintegrates into cascading pixel voxels of cyan, magenta, and gold, alpine sky crystal-clear, hi-key lighting, large negative space, ultra-sharp 8-k",
+        seed: -1,
+        num_inference_steps: 4,
+        guidance: 7,
+        negative_prompt: "",
+        image_format: "png",
+        width: 1024,
+        height: 1024,
       },
     });
     console.log("Submitted job:", job1.clientJobId);
@@ -94,15 +107,15 @@ async function main() {
     const jobs = await Promise.all([
       orchestrator.submit({
         clientJobId: `concurrent-${Date.now()}-1`,
-        input: { prompt: "Generate a cat", animal: "cat" },
+        input: { prompt: "a cat" },
       }),
       orchestrator.submit({
         clientJobId: `concurrent-${Date.now()}-2`,
-        input: { prompt: "Generate a dog", animal: "dog" },
+        input: { prompt: "a dog" },
       }),
       orchestrator.submit({
         clientJobId: `concurrent-${Date.now()}-3`,
-        input: { prompt: "Generate a bird", animal: "bird" },
+        input: { prompt: "a bird" },
       }),
     ]);
 

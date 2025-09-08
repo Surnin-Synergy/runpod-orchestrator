@@ -15,13 +15,13 @@ A Redis-backed, multi-instance task orchestrator for Runpod Serverless that guar
 ## Installation
 
 ```bash
-npm install @yourscope/runpod-orchestrator ioredis
+npm install @surninsynergy/runpod-orchestrator ioredis
 ```
 
 ## Quick Start
 
 ```typescript
-import { createOrchestrator } from '@yourscope/runpod-orchestrator';
+import { createOrchestrator } from '@surninsynergy/runpod-orchestrator';
 
 const orchestrator = await createOrchestrator({
   redis: { url: process.env.REDIS_URL },
@@ -211,6 +211,8 @@ const orchestrator = await createOrchestrator({
 
 ## Development
 
+### Local Development
+
 ```bash
 # Install dependencies
 npm install
@@ -226,6 +228,35 @@ npm run build
 
 # Lint
 npm run lint
+```
+
+### Docker Development
+
+```bash
+# Start Redis and run the basic example
+docker-compose up
+
+# Run in detached mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+
+# Rebuild and run
+docker-compose up --build
+```
+
+The docker-compose setup includes:
+- **Redis**: Redis 7 with persistence enabled
+- **Orchestrator**: Runs the basic usage example with environment variables from `.env`
+
+Make sure to create a `.env` file with your Runpod credentials:
+```bash
+RUNPOD_API_KEY=your_api_key_here
+RUNPOD_ENDPOINT_ID=your_endpoint_id_here
 ```
 
 ## License

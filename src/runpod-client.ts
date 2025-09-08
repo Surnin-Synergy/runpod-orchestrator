@@ -1,5 +1,5 @@
-import { RunpodJobStatus, RunpodRunResponse } from './types';
-import { RUNPOD_STATUS_MAP } from './constants';
+import { RunpodJobStatus, RunpodRunResponse } from "./types";
+import { RUNPOD_STATUS_MAP } from "./constants";
 
 export class RunpodClient {
   private baseUrl: string;
@@ -9,27 +9,32 @@ export class RunpodClient {
   constructor(apiKey: string, endpointId: string) {
     this.apiKey = apiKey;
     this.endpointId = endpointId;
-    this.baseUrl = 'https://api.runpod.io/v2';
+    this.baseUrl = "https://api.runpod.ai/v2";
   }
 
   async run(input: unknown): Promise<RunpodRunResponse> {
     const url = `${this.baseUrl}/${this.endpointId}/run`;
-    
+
+    const requestBody = { input };
+
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ input }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
-      throw new Error(`Runpod run failed: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(
+        `Runpod run failed: ${response.status} ${response.statusText} - ${errorText}`
+      );
     }
 
-    const data = await response.json() as any;
-    
+    const data = (await response.json()) as any;
+
     if (data.errors && data.errors.length > 0) {
       throw new Error(`Runpod run error: ${data.errors[0].message}`);
     }
@@ -39,11 +44,11 @@ export class RunpodClient {
 
   async status(jobId: string): Promise<RunpodJobStatus> {
     const url = `${this.baseUrl}/${this.endpointId}/status/${jobId}`;
-    
+
     const response = await fetch(url, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
       },
     });
 
@@ -51,15 +56,20 @@ export class RunpodClient {
       if (response.status === 404) {
         return {
           id: jobId,
-          status: 'NOT_FOUND',
-          error: 'Job not found or expired'
+          status: "NOT_FOUND",
+          error: "Job not found or expired",
         };
       }
-      throw new Error(`Runpod status failed: ${response.status} ${response.statusText}`);
+
+      const errorText = await response.text();
+      console.log("Runpod status error response body:", errorText);
+      throw new Error(
+        `Runpod status failed: ${response.status} ${response.statusText} - ${errorText}`
+      );
     }
 
-    const data = await response.json() as any;
-    
+    const data = (await response.json()) as any;
+
     if (data.errors && data.errors.length > 0) {
       throw new Error(`Runpod status error: ${data.errors[0].message}`);
     }
@@ -75,20 +85,24 @@ export class RunpodClient {
 
   async cancel(jobId: string): Promise<void> {
     const url = `${this.baseUrl}/${this.endpointId}/cancel/${jobId}`;
-    
+
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
       },
     });
 
     if (!response.ok) {
-      throw new Error(`Runpod cancel failed: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.log("Runpod cancel error response body:", errorText);
+      throw new Error(
+        `Runpod cancel failed: ${response.status} ${response.statusText} - ${errorText}`
+      );
     }
 
-    const data = await response.json() as any;
-    
+    const data = (await response.json()) as any;
+
     if (data.errors && data.errors.length > 0) {
       throw new Error(`Runpod cancel error: ${data.errors[0].message}`);
     }
@@ -102,33 +116,40 @@ export class RunpodClient {
   }
 
   mapRunpodStatus(runpodStatus: string): string {
-    return RUNPOD_STATUS_MAP[runpodStatus as keyof typeof RUNPOD_STATUS_MAP] || 'FAILED';
+    return (
+      RUNPOD_STATUS_MAP[runpodStatus as keyof typeof RUNPOD_STATUS_MAP] ||
+      "FAILED"
+    );
   }
 
   isTransientError(error: Error): boolean {
     const message = error.message.toLowerCase();
-    
+
     // Network errors
-    if (message.includes('network') || 
-        message.includes('timeout') || 
-        message.includes('econnreset') ||
-        message.includes('enotfound')) {
+    if (
+      message.includes("network") ||
+      message.includes("timeout") ||
+      message.includes("econnreset") ||
+      message.includes("enotfound")
+    ) {
       return true;
     }
-    
+
     // HTTP 5xx errors
-    if (message.includes('500') || 
-        message.includes('502') || 
-        message.includes('503') || 
-        message.includes('504')) {
+    if (
+      message.includes("500") ||
+      message.includes("502") ||
+      message.includes("503") ||
+      message.includes("504")
+    ) {
       return true;
     }
-    
+
     // Rate limiting
-    if (message.includes('429') || message.includes('rate limit')) {
+    if (message.includes("429") || message.includes("rate limit")) {
       return true;
     }
-    
+
     return false;
   }
 }

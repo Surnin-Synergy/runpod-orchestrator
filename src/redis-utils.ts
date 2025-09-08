@@ -20,7 +20,11 @@ export class RedisUtils {
     // Use HSETNX to prevent race conditions
     const pipeline = this.redis.pipeline();
     pipeline.hsetnx(key, 'clientJobId', job.clientJobId);
-    pipeline.hmset(key, fields);
+    
+    // Only call hmset if there are fields to set
+    if (Object.keys(fields).length > 0) {
+      pipeline.hmset(key, fields);
+    }
     
     const results = await pipeline.exec();
     return results?.[0]?.[1] === 1; // First command (HSETNX) succeeded
@@ -30,7 +34,10 @@ export class RedisUtils {
     const key = this.redisKeys.job(clientJobId);
     const fields = this.jobToHash(updates);
     
-    await this.redis.hmset(key, fields);
+    // Only call hmset if there are fields to update
+    if (Object.keys(fields).length > 0) {
+      await this.redis.hmset(key, fields);
+    }
     await this.redis.hset(key, 'updatedAt', Date.now());
   }
 
@@ -191,7 +198,10 @@ export class RedisUtils {
     const script = `
       local current = redis.call("HGET", KEYS[1], "status")
       if current == ARGV[1] then
-        redis.call("HMSET", KEYS[1], unpack(ARGV, 2))
+        local fieldCount = #ARGV - 2
+        if fieldCount > 0 then
+          redis.call("HMSET", KEYS[1], unpack(ARGV, 2, #ARGV - 1))
+        end
         redis.call("HSET", KEYS[1], "updatedAt", ARGV[#ARGV])
         return 1
       else
