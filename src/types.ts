@@ -14,6 +14,7 @@ export interface RunpodOrchestratorConfig {
     apiKey: string; 
     endpointId: string;
   };
+  namespace?: string;
   polling: {
     enableStreaming?: boolean;
     initialBackoffMs?: number;

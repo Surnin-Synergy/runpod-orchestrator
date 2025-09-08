@@ -1,16 +1,20 @@
 import { Redis } from 'ioredis';
 import { JobRecord, RunpodTaskStatus, LockResult } from './types';
-import { REDIS_KEYS, DEFAULT_CONFIG } from './constants';
+import { createRedisKeys, DEFAULT_CONFIG } from './constants';
 
 export class RedisUtils {
+  private redisKeys: ReturnType<typeof createRedisKeys>;
+
   constructor(
     public redis: Redis,
     private namespace: string = DEFAULT_CONFIG.namespace
-  ) {}
+  ) {
+    this.redisKeys = createRedisKeys(namespace);
+  }
 
   // Job hash operations
   async createJob(job: JobRecord): Promise<boolean> {
-    const key = REDIS_KEYS.job(job.clientJobId);
+    const key = this.redisKeys.job(job.clientJobId);
     const fields = this.jobToHash(job);
     
     // Use HSETNX to prevent race conditions
@@ -23,7 +27,7 @@ export class RedisUtils {
   }
 
   async updateJob(clientJobId: string, updates: Partial<JobRecord>): Promise<void> {
-    const key = REDIS_KEYS.job(clientJobId);
+    const key = this.redisKeys.job(clientJobId);
     const fields = this.jobToHash(updates);
     
     await this.redis.hmset(key, fields);
@@ -31,7 +35,7 @@ export class RedisUtils {
   }
 
   async getJob(clientJobId: string): Promise<JobRecord | null> {
-    const key = REDIS_KEYS.job(clientJobId);
+    const key = this.redisKeys.job(clientJobId);
     const hash = await this.redis.hgetall(key);
     
     if (!hash.clientJobId) {
@@ -42,23 +46,23 @@ export class RedisUtils {
   }
 
   async deleteJob(clientJobId: string): Promise<void> {
-    const key = REDIS_KEYS.job(clientJobId);
+    const key = this.redisKeys.job(clientJobId);
     await this.redis.del(key);
   }
 
   // Pending queue operations
   async addToPending(clientJobId: string, nextPollAt: number): Promise<void> {
-    await this.redis.zadd(REDIS_KEYS.pending, nextPollAt, clientJobId);
+    await this.redis.zadd(this.redisKeys.pending, nextPollAt, clientJobId);
   }
 
   async removeFromPending(clientJobId: string): Promise<void> {
-    await this.redis.zrem(REDIS_KEYS.pending, clientJobId);
+    await this.redis.zrem(this.redisKeys.pending, clientJobId);
   }
 
   async getPendingJobs(limit: number = DEFAULT_CONFIG.polling.batchSize): Promise<string[]> {
     const now = Date.now();
     return await this.redis.zrangebyscore(
-      REDIS_KEYS.pending,
+      this.redisKeys.pending,
       '-inf',
       now,
       'LIMIT',
@@ -69,7 +73,7 @@ export class RedisUtils {
 
   // Lock operations
   async acquireLock(clientJobId: string, instanceId: string): Promise<LockResult> {
-    const lockKey = REDIS_KEYS.lock(clientJobId);
+    const lockKey = this.redisKeys.lock(clientJobId);
     const token = `${instanceId}:${Date.now()}:${Math.random()}`;
     const leaseMs = DEFAULT_CONFIG.lockLeaseMs;
     
@@ -95,7 +99,7 @@ export class RedisUtils {
   }
 
   async renewLock(clientJobId: string, token: string): Promise<boolean> {
-    const lockKey = REDIS_KEYS.lock(clientJobId);
+    const lockKey = this.redisKeys.lock(clientJobId);
     const leaseMs = DEFAULT_CONFIG.lockLeaseMs;
     
     const script = `
@@ -112,7 +116,7 @@ export class RedisUtils {
   }
 
   async releaseLock(clientJobId: string, token: string): Promise<void> {
-    const lockKey = REDIS_KEYS.lock(clientJobId);
+    const lockKey = this.redisKeys.lock(clientJobId);
     
     const script = `
       if redis.call("GET", KEYS[1]) == ARGV[1] then
@@ -134,23 +138,23 @@ export class RedisUtils {
 
   // Event publishing
   async publishEvent(event: string, payload: any): Promise<void> {
-    await this.redis.publish(REDIS_KEYS.events, JSON.stringify({ event, payload }));
+    await this.redis.publish(this.redisKeys.events, JSON.stringify({ event, payload }));
   }
 
   // Input hash deduplication
   async setInputHashIndex(hash: string, clientJobId: string): Promise<void> {
-    const key = REDIS_KEYS.inputHashIndex(hash);
+    const key = this.redisKeys.inputHashIndex(hash);
     await this.redis.set(key, clientJobId);
   }
 
   async getInputHashIndex(hash: string): Promise<string | null> {
-    const key = REDIS_KEYS.inputHashIndex(hash);
+    const key = this.redisKeys.inputHashIndex(hash);
     return await this.redis.get(key);
   }
 
   // Recovery operations
   async getAllNonTerminalJobs(): Promise<JobRecord[]> {
-    const pattern = REDIS_KEYS.job('*');
+    const pattern = this.redisKeys.job('*');
     const keys = await this.redis.keys(pattern);
     
     if (keys.length === 0) {
@@ -182,7 +186,7 @@ export class RedisUtils {
     toStatus: RunpodTaskStatus,
     updates: Partial<JobRecord> = {}
   ): Promise<boolean> {
-    const key = REDIS_KEYS.job(clientJobId);
+    const key = this.redisKeys.job(clientJobId);
     
     const script = `
       local current = redis.call("HGET", KEYS[1], "status")
@@ -203,6 +207,10 @@ export class RedisUtils {
   }
 
   // Utility methods
+  getJobKey(clientJobId: string): string {
+    return this.redisKeys.job(clientJobId);
+  }
+
   private jobToHash(job: Partial<JobRecord>): Record<string, string> {
     const hash: Record<string, string> = {};
     

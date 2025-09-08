@@ -57,6 +57,23 @@ if (result.status === "COMPLETED") {
 }
 ```
 
+## Custom Namespace
+
+You can customize the Redis key namespace to avoid conflicts with other applications:
+
+```typescript
+const orchestrator = await createOrchestrator({
+  redis: { url: process.env.REDIS_URL },
+  runpod: { 
+    apiKey: process.env.RUNPOD_API_KEY!,
+    endpointId: process.env.RUNPOD_ENDPOINT_ID!
+  },
+  namespace: "myapp:runpod:", // Custom namespace
+});
+```
+
+This will use keys like `myapp:runpod:job:<clientJobId>` instead of the default `runpod:job:<clientJobId>`.
+
 ## Configuration
 
 ```typescript
@@ -64,6 +81,7 @@ interface RunpodOrchestratorConfig {
   instanceId?: string;                 // unique per process; default = hostname:pid:random
   redis: { url?: string } | { client: import("ioredis").Redis };
   runpod: { apiKey: string; endpointId: string };
+  namespace?: string;                  // Redis key namespace; default = "runpod:"
   polling: {
     enableStreaming?: boolean;         // try stream() if supported
     initialBackoffMs?: number;         // default 2000
@@ -157,13 +175,15 @@ NODE_ENV=production node app.js &
 
 ## Redis Schema
 
-The orchestrator uses the following Redis keys:
+The orchestrator uses the following Redis keys (with configurable namespace):
 
-- `runpod:job:<clientJobId>` - Job hash with all metadata
-- `runpod:pending` - Sorted set of jobs to poll (score = nextPollAt)
-- `runpod:locks:<clientJobId>` - Distributed lock token
-- `runpod:events` - Pub/Sub channel for cross-instance events
-- `runpod:index:inputHash:<hash>` - Input hash deduplication index
+- `<namespace>job:<clientJobId>` - Job hash with all metadata
+- `<namespace>pending` - Sorted set of jobs to poll (score = nextPollAt)
+- `<namespace>locks:<clientJobId>` - Distributed lock token
+- `<namespace>events` - Pub/Sub channel for cross-instance events
+- `<namespace>index:inputHash:<hash>` - Input hash deduplication index
+
+By default, `<namespace>` is `"runpod:"`, but you can customize it via the `namespace` configuration option.
 
 ## Error Handling
 

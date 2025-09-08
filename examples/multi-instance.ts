@@ -16,6 +16,10 @@ async function createInstance(instanceId: string, port: number) {
     polling: {
       batchSize: 10, // Smaller batch size for demo
     },
+    storage: {
+      persistInput: true,
+      resultTtlSec: 604800, // 7 days
+    },
     logging: {
       info: (msg, ...args) => console.log(`[${instanceId}] ${msg}`, ...args),
       error: (msg, ...args) =>

@@ -32,7 +32,7 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
       this.redis = new Redis(config.redis.url || 'redis://localhost:6379');
     }
     
-    this.redisUtils = new RedisUtils(this.redis, 'runpod:');
+    this.redisUtils = new RedisUtils(this.redis, this.config.namespace);
     this.runpodClient = new RunpodClient(
       config.runpod.apiKey,
       config.runpod.endpointId

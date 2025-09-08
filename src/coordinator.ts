@@ -26,7 +26,7 @@ export class Coordinator extends EventEmitter {
     config: RunpodOrchestratorConfig
   ) {
     super();
-    this.redisUtils = new RedisUtils(redis, 'runpod:');
+    this.redisUtils = new RedisUtils(redis, config.namespace);
     this.runpodClient = runpodClient;
     this.config = config;
     this.instanceId = config.instanceId || this.generateInstanceId();
@@ -324,7 +324,7 @@ export class Coordinator extends EventEmitter {
     
     // Set TTL for terminal jobs
     if (this.config.storage.resultTtlSec) {
-      const key = `runpod:job:${job.clientJobId}`;
+      const key = this.redisUtils.getJobKey(job.clientJobId);
       await this.redisUtils.redis.expire(key, this.config.storage.resultTtlSec);
     }
     

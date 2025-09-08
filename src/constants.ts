@@ -23,13 +23,13 @@ export const DEFAULT_CONFIG = {
   statusCheckIntervalMs: 1000,
 } as const;
 
-export const REDIS_KEYS = {
-  job: (clientJobId: string) => `runpod:job:${clientJobId}`,
-  pending: "runpod:pending",
-  lock: (clientJobId: string) => `runpod:locks:${clientJobId}`,
-  events: "runpod:events",
-  inputHashIndex: (hash: string) => `runpod:index:inputHash:${hash}`,
-} as const;
+export const createRedisKeys = (namespace: string) => ({
+  job: (clientJobId: string) => `${namespace}job:${clientJobId}`,
+  pending: `${namespace}pending`,
+  lock: (clientJobId: string) => `${namespace}locks:${clientJobId}`,
+  events: `${namespace}events`,
+  inputHashIndex: (hash: string) => `${namespace}index:inputHash:${hash}`,
+});
 
 export const RUNPOD_STATUS_MAP = {
   IN_QUEUE: "QUEUED",
