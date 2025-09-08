@@ -154,7 +154,8 @@ export class Coordinator extends EventEmitter {
         // Emit event
         this.emit('submitted', {
           clientJobId: job.clientJobId,
-          runpodJobId: runpodResponse.id
+          runpodJobId: runpodResponse.id,
+          metadata: job.metadata
         });
         
         this.log('info', `Job ${job.clientJobId} submitted to Runpod: ${runpodResponse.id}`);
@@ -179,7 +180,8 @@ export class Coordinator extends EventEmitter {
       this.emit('failed', {
         clientJobId: job.clientJobId,
         error: error instanceof Error ? error.message : String(error),
-        status: 'FAILED'
+        status: 'FAILED',
+        metadata: job.metadata
       });
     } finally {
       await this.redisUtils.releaseLock(job.clientJobId, lockToken);
@@ -231,7 +233,8 @@ export class Coordinator extends EventEmitter {
         this.emit('failed', {
           clientJobId: job.clientJobId,
           error: error instanceof Error ? error.message : String(error),
-          status: 'FAILED'
+          status: 'FAILED',
+          metadata: job.metadata
         });
         
         await this.cleanupTerminalJob(job, lockToken);
@@ -266,13 +269,15 @@ export class Coordinator extends EventEmitter {
       if (status === 'COMPLETED') {
         this.emit('completed', {
           clientJobId: job.clientJobId,
-          output: runpodStatus.output
+          output: runpodStatus.output,
+          metadata: job.metadata
         });
       } else {
         this.emit('failed', {
           clientJobId: job.clientJobId,
           error: runpodStatus.error || 'Unknown error',
-          status
+          status,
+          metadata: job.metadata
         });
       }
       
@@ -297,7 +302,8 @@ export class Coordinator extends EventEmitter {
     this.emit('progress', {
       clientJobId: job.clientJobId,
       status: 'IN_PROGRESS',
-      metrics: runpodStatus.metrics
+      metrics: runpodStatus.metrics,
+      metadata: job.metadata
     });
     
     // Schedule next poll

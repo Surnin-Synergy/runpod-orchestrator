@@ -36,20 +36,20 @@ async function main() {
   });
 
   // Set up event listeners
-  orchestrator.on("submitted", ({ clientJobId, runpodJobId }) => {
-    console.log(`✅ Job ${clientJobId} submitted to Runpod: ${runpodJobId}`);
+  orchestrator.on("submitted", ({ clientJobId, runpodJobId, metadata }) => {
+    console.log(`✅ Job ${clientJobId} submitted to Runpod: ${runpodJobId}`, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
   });
 
-  orchestrator.on("progress", ({ clientJobId, status, metrics }) => {
-    console.log(`🔄 Job ${clientJobId} status: ${status}`, metrics);
+  orchestrator.on("progress", ({ clientJobId, status, metrics, metadata }) => {
+    console.log(`🔄 Job ${clientJobId} status: ${status}`, metrics, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
   });
 
-  orchestrator.on("completed", ({ clientJobId, output }) => {
-    console.log(`🎉 Job ${clientJobId} completed:`, output);
+  orchestrator.on("completed", ({ clientJobId, output, metadata }) => {
+    console.log(`🎉 Job ${clientJobId} completed:`, output, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
   });
 
-  orchestrator.on("failed", ({ clientJobId, error, status }) => {
-    console.error(`❌ Job ${clientJobId} failed (${status}):`, error);
+  orchestrator.on("failed", ({ clientJobId, error, status, metadata }) => {
+    console.error(`❌ Job ${clientJobId} failed (${status}):`, error, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
   });
 
   try {
@@ -77,6 +77,39 @@ async function main() {
       5 * 60 * 1000
     ); // 5 minutes
     console.log("Job 1 result:", result1);
+
+    // Example 1.5: Job with metadata
+    console.log("\n--- Example 1.5: Job with Metadata ---");
+    const jobWithMetadata = await orchestrator.submit({
+      clientJobId: `job-${Date.now()}-metadata`,
+      input: {
+        prompt: "A beautiful sunset over mountains",
+        seed: 42,
+        num_inference_steps: 4,
+        guidance: 7,
+        negative_prompt: "",
+        image_format: "png",
+        width: 512,
+        height: 512,
+      },
+      metadata: {
+        userId: "user-123",
+        priority: "high",
+        source: "web-app",
+        analytics: {
+          campaign: "summer-promo",
+          experiment: "A",
+        },
+      },
+    });
+    console.log("Submitted job with metadata:", jobWithMetadata.clientJobId);
+
+    // Wait for result
+    const resultWithMetadata = await orchestrator.awaitResult(
+      jobWithMetadata.clientJobId,
+      5 * 60 * 1000
+    );
+    console.log("Job with metadata result:", resultWithMetadata);
 
     // Example 2: Job with input hash for deduplication
     console.log("\n--- Example 2: Job with Deduplication ---");

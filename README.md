@@ -10,6 +10,7 @@ A Redis-backed, multi-instance task orchestrator for Runpod Serverless that guar
 - **Automatic recovery**: Recovers orphaned jobs on startup
 - **Exponential backoff**: Intelligent retry strategy with jitter
 - **Event-driven**: Real-time progress updates via EventEmitter
+- **Metadata support**: Pass additional data with jobs for analytics and user tracking
 - **TypeScript support**: Full type definitions included
 
 ## Installation
@@ -33,25 +34,37 @@ const orchestrator = await createOrchestrator({
 });
 
 // Listen for events
-orchestrator.on('completed', ({ clientJobId, output }) => {
+orchestrator.on('completed', ({ clientJobId, output, metadata }) => {
   console.log('Job completed:', clientJobId, output);
+  if (metadata?.userId) {
+    console.log('User:', metadata.userId);
+  }
 });
 
-orchestrator.on('failed', ({ clientJobId, error, status }) => {
+orchestrator.on('failed', ({ clientJobId, error, status, metadata }) => {
   console.error('Job failed:', clientJobId, error, status);
+  if (metadata?.userId) {
+    console.log('User:', metadata.userId);
+  }
 });
 
-// Submit a job
+// Submit a job with metadata
 const { clientJobId } = await orchestrator.submit({
   clientJobId: crypto.randomUUID(),
   input: { prompt: "A cat in space" },
   inputHash: "sha256:...", // optional for deduplication
+  metadata: {
+    userId: "user-123",
+    priority: "high",
+    source: "web-app"
+  }
 });
 
 // Wait for result
 const result = await orchestrator.awaitResult(clientJobId, 15 * 60_000);
 if (result.status === "COMPLETED") {
   console.log('Result:', result.output);
+  console.log('User:', result.metadata?.userId);
 } else {
   console.error('Failed:', result.error);
 }
@@ -109,6 +122,7 @@ interface SubmitOptions {
   clientJobId: string;                 // caller-generated UUID
   input: unknown;                      // Runpod endpoint input
   inputHash?: string;                  // optional dedupe key
+  metadata?: Record<string, any>;      // optional additional data
 }
 ```
 
@@ -118,7 +132,7 @@ interface SubmitOptions {
 
 Wait for a job to complete with optional timeout.
 
-**Returns:** `Promise<{ status: "COMPLETED"|"FAILED"|"TIMED_OUT"|"CANCELED"; output?: any; error?: any }>`
+**Returns:** `Promise<{ status: "COMPLETED"|"FAILED"|"TIMED_OUT"|"CANCELED"; output?: any; error?: any; metadata?: Record<string, any> }>`
 
 ### `get(clientJobId: string)`
 
@@ -141,11 +155,68 @@ Recover all non-terminal jobs (useful on startup).
 ### Events
 
 ```typescript
-orchestrator.on('submitted', ({ clientJobId, runpodJobId }) => {});
-orchestrator.on('progress', ({ clientJobId, status, metrics }) => {});
-orchestrator.on('completed', ({ clientJobId, output }) => {});
-orchestrator.on('failed', ({ clientJobId, error, status }) => {});
+orchestrator.on('submitted', ({ clientJobId, runpodJobId, metadata }) => {});
+orchestrator.on('progress', ({ clientJobId, status, metrics, metadata }) => {});
+orchestrator.on('completed', ({ clientJobId, output, metadata }) => {});
+orchestrator.on('failed', ({ clientJobId, error, status, metadata }) => {});
 ```
+
+## Metadata Support
+
+The orchestrator supports passing additional metadata with jobs, which is useful for:
+
+- **User tracking**: Associate jobs with specific users
+- **Analytics**: Track campaigns, experiments, or business metrics
+- **Debugging**: Include debugging information or request context
+- **Business logic**: Pass business context through the job lifecycle
+
+### Using Metadata
+
+```typescript
+// Submit job with metadata
+const job = await orchestrator.submit({
+  clientJobId: 'job-123',
+  input: { prompt: 'Generate an image' },
+  metadata: {
+    userId: 'user-123',
+    priority: 'high',
+    source: 'web-app',
+    analytics: {
+      campaign: 'summer-promo',
+      experiment: 'A',
+      sessionId: 'sess-456'
+    }
+  }
+});
+
+// Metadata is available in all events
+orchestrator.on('completed', ({ clientJobId, output, metadata }) => {
+  console.log(`Job ${clientJobId} completed for user ${metadata?.userId}`);
+  
+  // Send result to user via WebSocket or API
+  if (metadata?.userId) {
+    sendToUser(metadata.userId, { jobId: clientJobId, result: output });
+  }
+  
+  // Track analytics
+  if (metadata?.analytics) {
+    trackEvent('job_completed', metadata.analytics);
+  }
+});
+
+// Metadata is available in results
+const result = await orchestrator.awaitResult(job.clientJobId);
+console.log('User ID:', result.metadata?.userId);
+console.log('Campaign:', result.metadata?.analytics?.campaign);
+```
+
+### Metadata Best Practices
+
+- **Keep it small**: Metadata is stored in Redis, so avoid large objects
+- **Use consistent structure**: Define a schema for your metadata
+- **Include user context**: Always include `userId` for user-facing applications
+- **Add debugging info**: Include request IDs, session IDs, or trace IDs
+- **Consider privacy**: Don't store sensitive data in metadata
 
 ## Job States
 

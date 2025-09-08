@@ -87,6 +87,24 @@ describe('RunpodOrchestrator', () => {
       await orchestrator.close();
     });
 
+    it('should submit a job with metadata', async () => {
+      const orchestrator = await createOrchestrator(config);
+      
+      const metadata = { userId: 'user-123', priority: 'high' };
+      const result = await orchestrator.submit({
+        clientJobId: 'test-job-1',
+        input: { prompt: 'test prompt' },
+        metadata
+      });
+      
+      expect(result.clientJobId).toBe('test-job-1');
+      
+      // Verify pipeline was called (which includes hmset for metadata)
+      expect(mockRedis.pipeline).toHaveBeenCalled();
+      
+      await orchestrator.close();
+    });
+
     it('should handle duplicate job submission', async () => {
       // Mock existing job
       mockRedis.hgetall.mockResolvedValue({
@@ -160,6 +178,54 @@ describe('RunpodOrchestrator', () => {
       
       expect(mockRedis.set).toHaveBeenCalled(); // Lock acquisition
       expect(mockRedis.eval).toHaveBeenCalled(); // State transition
+      
+      await orchestrator.close();
+    });
+  });
+
+  describe('awaitResult', () => {
+    it('should return metadata in result for completed job', async () => {
+      const metadata = { userId: 'user-123', priority: 'high' };
+      const jobData = {
+        clientJobId: 'test-job-1',
+        status: 'COMPLETED',
+        output: JSON.stringify({ result: 'success' }),
+        metadata: JSON.stringify(metadata),
+        createdAt: Date.now().toString(),
+        updatedAt: Date.now().toString(),
+      };
+      
+      mockRedis.hgetall.mockResolvedValue(jobData);
+      
+      const orchestrator = await createOrchestrator(config);
+      const result = await orchestrator.awaitResult('test-job-1');
+      
+      expect(result.status).toBe('COMPLETED');
+      expect(result.output).toEqual({ result: 'success' });
+      expect(result.metadata).toEqual(metadata);
+      
+      await orchestrator.close();
+    });
+
+    it('should return metadata in result for failed job', async () => {
+      const metadata = { userId: 'user-123', priority: 'high' };
+      const jobData = {
+        clientJobId: 'test-job-1',
+        status: 'FAILED',
+        error: JSON.stringify({ message: 'Job failed' }),
+        metadata: JSON.stringify(metadata),
+        createdAt: Date.now().toString(),
+        updatedAt: Date.now().toString(),
+      };
+      
+      mockRedis.hgetall.mockResolvedValue(jobData);
+      
+      const orchestrator = await createOrchestrator(config);
+      const result = await orchestrator.awaitResult('test-job-1');
+      
+      expect(result.status).toBe('FAILED');
+      expect(result.error).toEqual({ message: 'Job failed' });
+      expect(result.metadata).toEqual(metadata);
       
       await orchestrator.close();
     });

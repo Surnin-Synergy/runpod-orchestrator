@@ -24,7 +24,7 @@ describe('RunpodClient', () => {
 
       expect(result).toEqual({ id: 'runpod-123' });
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.runpod.io/v2/test-endpoint-id/run',
+        'https://api.runpod.ai/v2/test-endpoint-id/run',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
@@ -53,10 +53,11 @@ describe('RunpodClient', () => {
         ok: false,
         status: 400,
         statusText: 'Bad Request',
+        text: jest.fn().mockResolvedValue('Bad Request'),
       };
       mockFetch.mockResolvedValue(mockResponse as any);
 
-      await expect(client.run({ prompt: 'test' })).rejects.toThrow('Runpod run failed: 400 Bad Request');
+      await expect(client.run({ prompt: 'test' })).rejects.toThrow('Runpod run failed: 400 Bad Request - Bad Request');
     });
   });
 
@@ -113,7 +114,7 @@ describe('RunpodClient', () => {
       await client.cancel('runpod-123');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.runpod.io/v2/test-endpoint-id/cancel/runpod-123',
+        'https://api.runpod.ai/v2/test-endpoint-id/cancel/runpod-123',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({

@@ -254,6 +254,7 @@ export class RedisUtils {
       endpointId: hash.endpointId,
       input: hash.input,
       inputHash: hash.inputHash,
+      metadata: hash.metadata ? JSON.parse(hash.metadata) : undefined,
     };
     
     return job;

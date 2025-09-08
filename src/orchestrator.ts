@@ -57,7 +57,7 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
   }
 
   async submit(opts: SubmitOptions): Promise<{ clientJobId: string; runpodJobId: string }> {
-    const { clientJobId, input, inputHash } = opts;
+    const { clientJobId, input, inputHash, metadata } = opts;
     
     // Check for existing job (idempotency)
     const existingJob = await this.redisUtils.getJob(clientJobId);
@@ -99,6 +99,7 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
       endpointId: this.config.runpod.endpointId,
       input: this.config.storage.persistInput ? JSON.stringify(input) : undefined,
       inputHash,
+      metadata,
     };
     
     // Create job in Redis
@@ -138,6 +139,7 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
     status: "COMPLETED"|"FAILED"|"TIMED_OUT"|"CANCELED"; 
     output?: any; 
     error?: any;
+    metadata?: Record<string, any>;
   }> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -154,22 +156,24 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
         this.off('failed', onFailed);
       };
       
-      const onCompleted = (payload: { clientJobId: string; output: any }) => {
+      const onCompleted = (payload: { clientJobId: string; output: any; metadata?: Record<string, any> }) => {
         if (payload.clientJobId === clientJobId) {
           cleanup();
           resolve({
             status: 'COMPLETED',
-            output: payload.output
+            output: payload.output,
+            metadata: payload.metadata
           });
         }
       };
       
-      const onFailed = (payload: { clientJobId: string; error: any; status: string }) => {
+      const onFailed = (payload: { clientJobId: string; error: any; status: string; metadata?: Record<string, any> }) => {
         if (payload.clientJobId === clientJobId) {
           cleanup();
           resolve({
             status: payload.status as "FAILED"|"TIMED_OUT"|"CANCELED",
-            error: payload.error
+            error: payload.error,
+            metadata: payload.metadata
           });
         }
       };
@@ -181,12 +185,14 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
           if (job.status === 'COMPLETED') {
             resolve({
               status: 'COMPLETED',
-              output: job.output
+              output: job.output,
+              metadata: job.metadata
             });
           } else {
             resolve({
               status: job.status as "FAILED"|"TIMED_OUT"|"CANCELED",
-              error: job.error
+              error: job.error,
+              metadata: job.metadata
             });
           }
           return;
@@ -248,7 +254,8 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
         this.emit('failed', {
           clientJobId,
           error: 'Job canceled by user',
-          status: 'CANCELED'
+          status: 'CANCELED',
+          metadata: job.metadata
         });
         
         this.log('info', `Job ${clientJobId} canceled`);

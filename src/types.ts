@@ -41,6 +41,7 @@ export interface SubmitOptions {
   clientJobId: string;
   input: unknown;
   inputHash?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface JobRecord {
@@ -59,13 +60,14 @@ export interface JobRecord {
   endpointId?: string;
   input?: string;
   inputHash?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface OrchestratorEvents {
-  submitted: (payload: { clientJobId: string; runpodJobId: string }) => void;
-  progress: (payload: { clientJobId: string; status: RunpodTaskStatus; metrics?: any }) => void;
-  completed: (payload: { clientJobId: string; output: any }) => void;
-  failed: (payload: { clientJobId: string; error: any; status: RunpodTaskStatus }) => void;
+  submitted: (payload: { clientJobId: string; runpodJobId: string; metadata?: Record<string, any> }) => void;
+  progress: (payload: { clientJobId: string; status: RunpodTaskStatus; metrics?: any; metadata?: Record<string, any> }) => void;
+  completed: (payload: { clientJobId: string; output: any; metadata?: Record<string, any> }) => void;
+  failed: (payload: { clientJobId: string; error: any; status: RunpodTaskStatus; metadata?: Record<string, any> }) => void;
 }
 
 export interface RunpodOrchestrator {
@@ -74,6 +76,7 @@ export interface RunpodOrchestrator {
     status: "COMPLETED"|"FAILED"|"TIMED_OUT"|"CANCELED"; 
     output?: any; 
     error?: any;
+    metadata?: Record<string, any>;
   }>;
   get(clientJobId: string): Promise<JobRecord | null>;
   cancel(clientJobId: string): Promise<void>;
