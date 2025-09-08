@@ -27,6 +27,14 @@
   ],
   "author": "Oleksii Surnin",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/surnin-synergy/runpod-orchestrator.git"
+  },
+  "homepage": "https://github.com/surnin-synergy/runpod-orchestrator#readme",
+  "bugs": {
+    "url": "https://github.com/surnin-synergy/runpod-orchestrator/issues"
+  },
   "peerDependencies": {
     "ioredis": "^5.0.0"
   },
@@ -45,5 +53,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
