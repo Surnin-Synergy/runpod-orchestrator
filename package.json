@@ -1,6 +1,6 @@
 {
   "name": "@surninsynergy/runpod-orchestrator",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A Redis-backed, multi-instance task orchestrator for Runpod Serverless",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

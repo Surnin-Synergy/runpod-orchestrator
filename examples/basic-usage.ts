@@ -1,19 +1,21 @@
 import { config } from "dotenv";
-import { createOrchestrator } from "../src/index";
+import { createOrchestrator, stopGlobalDispatcher } from "../src/index";
 
 // Load environment variables from .env file
 config();
 
-const ENDPOINT_ID =
-  process.env.RUNPOD_ENDPOINT_ID || "black-forest-labs-flux-1-schnell";
+const ENDPOINT_ID_1 = "" // any other endpoint id;
+const ENDPOINT_ID_2 = process.env.RUNPOD_ENDPOINT_ID || "black-forest-labs-flux-1-schnell";
 
 async function main() {
-  // Create orchestrator instance
-  const orchestrator = await createOrchestrator({
+  console.log("🚀 Starting orchestrators with central dispatcher...");
+
+  // Create first orchestrator
+  const orchestrator1 = await createOrchestrator({
     redis: { url: process.env.REDIS_URL || "redis://localhost:6379" },
     runpod: {
       apiKey: process.env.RUNPOD_API_KEY!,
-      endpointId: ENDPOINT_ID,
+      endpointId: ENDPOINT_ID_1,
     },
     polling: {
       initialBackoffMs: 2000,
@@ -29,59 +31,83 @@ async function main() {
       useInputHash: true,
     },
     logging: {
-      debug: (msg, ...args) => console.debug(`[DEBUG] ${msg}`, ...args),
-      info: (msg, ...args) => console.info(`[INFO] ${msg}`, ...args),
-      error: (msg, ...args) => console.error(`[ERROR] ${msg}`, ...args),
+      debug: (msg, ...args) => console.debug(`[DEBUG-1] ${msg}`, ...args),
+      info: (msg, ...args) => console.info(`[INFO-1] ${msg}`, ...args),
+      error: (msg, ...args) => console.error(`[ERROR-1] ${msg}`, ...args),
     },
   });
 
-  // Set up event listeners
-  orchestrator.on("submitted", ({ clientJobId, runpodJobId, metadata }) => {
-    console.log(`✅ Job ${clientJobId} submitted to Runpod: ${runpodJobId}`, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+  // Create second orchestrator
+  const orchestrator2 = await createOrchestrator({
+    redis: { url: process.env.REDIS_URL || "redis://localhost:6379" },
+    runpod: {
+      apiKey: process.env.RUNPOD_API_KEY!,
+      endpointId: ENDPOINT_ID_2,
+    },
+    polling: {
+      initialBackoffMs: 2000,
+      maxBackoffMs: 10000,
+      batchSize: 50,
+    },
+    storage: {
+      persistInput: true,
+      resultTtlSec: 604800, // 7 days
+    },
+    dedupe: {
+      enable: true,
+      useInputHash: true,
+    },
+    logging: {
+      debug: (msg, ...args) => console.debug(`[DEBUG-2] ${msg}`, ...args),
+      info: (msg, ...args) => console.info(`[INFO-2] ${msg}`, ...args),
+      error: (msg, ...args) => console.error(`[ERROR-2] ${msg}`, ...args),
+    },
   });
 
-  orchestrator.on("progress", ({ clientJobId, status, metrics, metadata }) => {
-    console.log(`🔄 Job ${clientJobId} status: ${status}`, metrics, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+  // Set up event listeners for orchestrator1
+  orchestrator1.on("submitted", ({ clientJobId, runpodJobId, metadata }) => {
+    console.log(`✅ [Orchestrator1] Job ${clientJobId} submitted to Runpod: ${runpodJobId}`, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
   });
 
-  orchestrator.on("completed", ({ clientJobId, output, metadata }) => {
-    console.log(`🎉 Job ${clientJobId} completed:`, output, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+  orchestrator1.on("progress", ({ clientJobId, status, metrics, metadata }) => {
+    console.log(`🔄 [Orchestrator1] Job ${clientJobId} status: ${status}`, metrics, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
   });
 
-  orchestrator.on("failed", ({ clientJobId, error, status, metadata }) => {
-    console.error(`❌ Job ${clientJobId} failed (${status}):`, error, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+  orchestrator1.on("completed", ({ clientJobId, output, metadata }) => {
+    console.log(`🎉 [Orchestrator1] Job ${clientJobId} completed:`, output, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+  });
+
+  orchestrator1.on("failed", ({ clientJobId, error, status, metadata }) => {
+    console.error(`❌ [Orchestrator1] Job ${clientJobId} failed (${status}):`, error, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+  });
+
+  // Set up event listeners for orchestrator2
+  orchestrator2.on("submitted", ({ clientJobId, runpodJobId, metadata }) => {
+    console.log(`✅ [Orchestrator2] Job ${clientJobId} submitted to Runpod: ${runpodJobId}`, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+  });
+
+  orchestrator2.on("progress", ({ clientJobId, status, metrics, metadata }) => {
+    console.log(`🔄 [Orchestrator2] Job ${clientJobId} status: ${status}`, metrics, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+  });
+
+  orchestrator2.on("completed", ({ clientJobId, output, metadata }) => {
+    console.log(`🎉 [Orchestrator2] Job ${clientJobId} completed:`, output, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+  });
+
+  orchestrator2.on("failed", ({ clientJobId, error, status, metadata }) => {
+    console.error(`❌ [Orchestrator2] Job ${clientJobId} failed (${status}):`, error, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
   });
 
   try {
-    // Example 1: Simple job submission
-    console.log("\n--- Example 1: Simple Job Submission ---");
-    const job1 = await orchestrator.submit({
+    console.log("\n--- Testing Central Dispatcher Architecture ---");
+    console.log(`Orchestrator1 endpoint: ${ENDPOINT_ID_1}`);
+    console.log(`Orchestrator2 endpoint: ${ENDPOINT_ID_2}`);
+    console.log("Both orchestrators share the same Redis dispatcher that routes jobs by endpointId\n");
+
+    // Submit job to orchestrator1 (should be processed by orchestrator1)
+    console.log("--- Submitting job to Orchestrator1 ---");
+    const job1 = await orchestrator1.submit({
       clientJobId: `job-${Date.now()}-1`,
-      input: {
-        prompt:
-          "A lone snowboarder carving down an untouched powder slope; the trail behind them disintegrates into cascading pixel voxels of cyan, magenta, and gold, alpine sky crystal-clear, hi-key lighting, large negative space, ultra-sharp 8-k",
-        seed: -1,
-        num_inference_steps: 4,
-        guidance: 7,
-        negative_prompt: "",
-        image_format: "png",
-        width: 1024,
-        height: 1024,
-      },
-    });
-    console.log("Submitted job:", job1.clientJobId);
-
-    // Wait for result
-    const result1 = await orchestrator.awaitResult(
-      job1.clientJobId,
-      5 * 60 * 1000
-    ); // 5 minutes
-    console.log("Job 1 result:", result1);
-
-    // Example 1.5: Job with metadata
-    console.log("\n--- Example 1.5: Job with Metadata ---");
-    const jobWithMetadata = await orchestrator.submit({
-      clientJobId: `job-${Date.now()}-metadata`,
       input: {
         prompt: "A beautiful sunset over mountains",
         seed: 42,
@@ -93,123 +119,69 @@ async function main() {
         height: 512,
       },
       metadata: {
-        userId: "user-123",
-        priority: "high",
-        source: "web-app",
-        analytics: {
-          campaign: "summer-promo",
-          experiment: "A",
-        },
+        source: "orchestrator1",
+        test: "dispatcher-routing"
+      }
+    });
+    console.log("Submitted job to orchestrator1:", job1.clientJobId);
+
+    // Submit job to orchestrator2 (should be processed by orchestrator2)
+    console.log("\n--- Submitting job to Orchestrator2 ---");
+    const job2 = await orchestrator2.submit({
+      clientJobId: `job-${Date.now()}-2`,
+      input: {
+        prompt: "A cat sitting on a windowsill",
+        seed: 123,
+        num_inference_steps: 4,
+        guidance: 7,
+        negative_prompt: "",
+        image_format: "png",
+        width: 512,
+        height: 512,
       },
+      metadata: {
+        source: "orchestrator2",
+        test: "dispatcher-routing"
+      }
     });
-    console.log("Submitted job with metadata:", jobWithMetadata.clientJobId);
+    console.log("Submitted job to orchestrator2:", job2.clientJobId);
 
-    // Wait for result
-    const resultWithMetadata = await orchestrator.awaitResult(
-      jobWithMetadata.clientJobId,
-      5 * 60 * 1000
-    );
-    console.log("Job with metadata result:", resultWithMetadata);
-
-    // Example 2: Job with input hash for deduplication
-    console.log("\n--- Example 2: Job with Deduplication ---");
-    const input2 = { prompt: "Same prompt for deduplication test" };
-    const inputHash2 = `sha256:${Buffer.from(JSON.stringify(input2)).toString(
-      "base64"
-    )}`;
-
-    const job2a = await orchestrator.submit({
-      clientJobId: `job-${Date.now()}-2a`,
-      input: input2,
-      inputHash: inputHash2,
-    });
-
-    // Submit same input again - should return existing job
-    const job2b = await orchestrator.submit({
-      clientJobId: `job-${Date.now()}-2b`,
-      input: input2,
-      inputHash: inputHash2,
-    });
-
-    console.log("Job 2a:", job2a.clientJobId);
-    console.log("Job 2b (should be same as 2a):", job2b.clientJobId);
-    console.log("Are they the same?", job2a.clientJobId === job2b.clientJobId);
-
-    // Example 3: Multiple concurrent jobs
-    console.log("\n--- Example 3: Multiple Concurrent Jobs ---");
-    const jobs = await Promise.all([
-      orchestrator.submit({
-        clientJobId: `concurrent-${Date.now()}-1`,
-        input: { prompt: "a cat" },
-      }),
-      orchestrator.submit({
-        clientJobId: `concurrent-${Date.now()}-2`,
-        input: { prompt: "a dog" },
-      }),
-      orchestrator.submit({
-        clientJobId: `concurrent-${Date.now()}-3`,
-        input: { prompt: "a bird" },
-      }),
+    // Wait for results
+    console.log("\n--- Waiting for results ---");
+    const [result1, result2] = await Promise.all([
+      orchestrator1.awaitResult(job1.clientJobId, 5 * 60 * 1000), // 5 minutes
+      orchestrator2.awaitResult(job2.clientJobId, 5 * 60 * 1000)  // 5 minutes
     ]);
 
-    console.log(
-      "Submitted concurrent jobs:",
-      jobs.map((j) => j.clientJobId)
-    );
+    console.log("\n--- Results ---");
+    console.log("Job1 result:", result1.status);
+    console.log("Job2 result:", result2.status);
 
-    // Wait for all to complete
-    const results = await Promise.all(
-      jobs.map((job) =>
-        orchestrator.awaitResult(job.clientJobId, 10 * 60 * 1000)
-      )
-    );
+    console.log("\n✅ Central dispatcher architecture working correctly!");
+    console.log("Jobs were routed to the correct orchestrators based on endpointId");
 
-    console.log(
-      "All concurrent jobs completed:",
-      results.map((r) => r.status)
-    );
-
-    // Example 4: Job cancellation
-    console.log("\n--- Example 4: Job Cancellation ---");
-    const jobToCancel = await orchestrator.submit({
-      clientJobId: `cancel-test-${Date.now()}`,
-      input: { prompt: "This job will be canceled" },
-    });
-
-    console.log("Submitted job to cancel:", jobToCancel.clientJobId);
-
-    // Cancel after 2 seconds
-    setTimeout(async () => {
-      try {
-        await orchestrator.cancel(jobToCancel.clientJobId);
-        console.log("Job canceled successfully");
-      } catch (error) {
-        console.error("Failed to cancel job:", error);
-      }
-    }, 2000);
-
-    // Example 5: Recovery demonstration
-    console.log("\n--- Example 5: Recovery ---");
-    const recoveredCount = await orchestrator.recoverAllPending();
-    console.log(`Recovered ${recoveredCount} pending jobs`);
   } catch (error) {
     console.error("Error in main:", error);
   } finally {
     // Clean shutdown
     console.log("\n--- Shutting down ---");
-    await orchestrator.close();
-    console.log("Orchestrator closed");
+    await orchestrator1.close();
+    await orchestrator2.close();
+    await stopGlobalDispatcher();
+    console.log("All orchestrators and dispatcher closed");
   }
 }
 
 // Handle graceful shutdown
 process.on("SIGINT", async () => {
   console.log("\nReceived SIGINT, shutting down gracefully...");
+  await stopGlobalDispatcher();
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
   console.log("\nReceived SIGTERM, shutting down gracefully...");
+  await stopGlobalDispatcher();
   process.exit(0);
 });
 

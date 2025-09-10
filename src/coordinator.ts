@@ -82,7 +82,7 @@ export class Coordinator extends EventEmitter {
     }
   }
 
-  private async processJob(clientJobId: string): Promise<void> {
+  async processJob(clientJobId: string): Promise<void> {
     try {
       // Try to acquire lock
       const lockResult = await this.redisUtils.acquireLock(clientJobId, this.instanceId);
@@ -158,7 +158,7 @@ export class Coordinator extends EventEmitter {
           metadata: job.metadata
         });
         
-        this.log('info', `Job ${job.clientJobId} submitted to Runpod: ${runpodResponse.id}`);
+        this.log('info', `Job ${job.clientJobId} submitted to Runpod: ${runpodResponse.id} (endpoint: ${job.endpointId})`);
       }
       
     } catch (error) {

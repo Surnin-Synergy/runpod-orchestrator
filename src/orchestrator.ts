@@ -3,6 +3,7 @@ import { Redis } from 'ioredis';
 import { RedisUtils } from './redis-utils';
 import { RunpodClient } from './runpod-client';
 import { Coordinator } from './coordinator';
+import { CentralDispatcher, OrchestratorInstance } from './dispatcher';
 import { 
   RunpodOrchestrator, 
   RunpodOrchestratorConfig, 
@@ -12,17 +13,19 @@ import {
 } from './types';
 import { DEFAULT_CONFIG, TERMINAL_STATUSES } from './constants';
 
-export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrchestrator {
+export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrchestrator, OrchestratorInstance {
   private redis: Redis;
   private redisUtils: RedisUtils;
   private runpodClient: RunpodClient;
   private coordinator: Coordinator;
   private config: RunpodOrchestratorConfig;
   private isStarted: boolean = false;
+  private dispatcher: CentralDispatcher;
 
-  constructor(config: RunpodOrchestratorConfig) {
+  constructor(config: RunpodOrchestratorConfig, dispatcher: CentralDispatcher) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.dispatcher = dispatcher;
     
     // Initialize Redis connection
     if ('client' in config.redis) {
@@ -46,12 +49,31 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
     this.coordinator.on('failed', (payload) => this.emit('failed', payload));
   }
 
+  // OrchestratorInstance interface implementation
+  get endpointId(): string {
+    return this.config.runpod.endpointId;
+  }
+
+  get instanceId(): string {
+    return this.coordinator['instanceId'];
+  }
+
+  async processJob(clientJobId: string): Promise<void> {
+    return this.coordinator.processJob(clientJobId);
+  }
+
+  isHealthy(): boolean {
+    return this.isStarted && !this.coordinator['isRunning'];
+  }
+
   async start(): Promise<void> {
     if (this.isStarted) {
       return;
     }
     
-    await this.coordinator.start();
+    // Register with dispatcher
+    this.dispatcher.registerOrchestrator(this);
+    
     this.isStarted = true;
     this.log('info', 'Orchestrator started. Endpoint ID: ' + this.config.runpod.endpointId);
   }
@@ -291,7 +313,9 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
       return;
     }
     
-    await this.coordinator.stop();
+    // Unregister from dispatcher
+    this.dispatcher.unregisterOrchestrator(this.endpointId);
+    
     await this.redis.disconnect();
     this.isStarted = false;
     this.log('info', 'Orchestrator closed');
