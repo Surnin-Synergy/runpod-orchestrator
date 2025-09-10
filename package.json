@@ -15,8 +15,7 @@
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
     "clean": "rm -rf dist",
-    "example:basic": "tsx examples/basic-usage.ts",
-    "example:multi-instance": "tsx examples/multi-instance.ts"
+    "example:basic": "tsx examples/basic-usage.ts"
   },
   "keywords": [
     "runpod",

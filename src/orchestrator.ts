@@ -53,7 +53,7 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
     
     await this.coordinator.start();
     this.isStarted = true;
-    this.log('info', 'Orchestrator started');
+    this.log('info', 'Orchestrator started. Endpoint ID: ' + this.config.runpod.endpointId);
   }
 
   async submit(opts: SubmitOptions): Promise<{ clientJobId: string; runpodJobId: string }> {
