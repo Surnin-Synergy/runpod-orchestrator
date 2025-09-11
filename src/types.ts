@@ -50,6 +50,7 @@ export interface JobRecord {
   status: RunpodTaskStatus;
   output?: any;
   error?: any;
+  runpodStatus?: any;
   createdAt: number;
   updatedAt: number;
   attempt?: number;
@@ -65,9 +66,9 @@ export interface JobRecord {
 
 export interface OrchestratorEvents {
   submitted: (payload: { clientJobId: string; runpodJobId: string; metadata?: Record<string, any> }) => void;
-  progress: (payload: { clientJobId: string; status: RunpodTaskStatus; metrics?: any; metadata?: Record<string, any> }) => void;
-  completed: (payload: { clientJobId: string; output: any; metadata?: Record<string, any> }) => void;
-  failed: (payload: { clientJobId: string; error: any; status: RunpodTaskStatus; metadata?: Record<string, any> }) => void;
+  progress: (payload: { clientJobId: string; status: RunpodTaskStatus; metrics?: any; runpodStatus?: any; metadata?: Record<string, any> }) => void;
+  completed: (payload: { clientJobId: string; output: any; runpodStatus?: any; metadata?: Record<string, any> }) => void;
+  failed: (payload: { clientJobId: string; error: any; status: RunpodTaskStatus; runpodStatus?: any; metadata?: Record<string, any> }) => void;
 }
 
 export interface RunpodOrchestrator {
@@ -76,6 +77,7 @@ export interface RunpodOrchestrator {
     status: "COMPLETED"|"FAILED"|"TIMED_OUT"|"CANCELED"; 
     output?: any; 
     error?: any;
+    runpodStatus?: any;
     metadata?: Record<string, any>;
   }>;
   get(clientJobId: string): Promise<JobRecord | null>;

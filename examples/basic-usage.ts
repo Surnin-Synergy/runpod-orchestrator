@@ -69,16 +69,25 @@ async function main() {
     console.log(`✅ [Orchestrator1] Job ${clientJobId} submitted to Runpod: ${runpodJobId}`, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
   });
 
-  orchestrator1.on("progress", ({ clientJobId, status, metrics, metadata }) => {
+  orchestrator1.on("progress", ({ clientJobId, status, metrics, runpodStatus, metadata }) => {
     console.log(`🔄 [Orchestrator1] Job ${clientJobId} status: ${status}`, metrics, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+    if (runpodStatus) {
+      console.log(`📊 [Orchestrator1] RunpodStatus for ${clientJobId}:`, JSON.stringify(runpodStatus, null, 2));
+    }
   });
 
-  orchestrator1.on("completed", ({ clientJobId, output, metadata }) => {
+  orchestrator1.on("completed", ({ clientJobId, output, runpodStatus, metadata }) => {
     console.log(`🎉 [Orchestrator1] Job ${clientJobId} completed:`, output, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+    if (runpodStatus) {
+      console.log(`📊 [Orchestrator1] Final RunpodStatus for ${clientJobId}:`, JSON.stringify(runpodStatus, null, 2));
+    }
   });
 
-  orchestrator1.on("failed", ({ clientJobId, error, status, metadata }) => {
+  orchestrator1.on("failed", ({ clientJobId, error, status, runpodStatus, metadata }) => {
     console.error(`❌ [Orchestrator1] Job ${clientJobId} failed (${status}):`, error, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+    if (runpodStatus) {
+      console.log(`📊 [Orchestrator1] Final RunpodStatus for ${clientJobId}:`, JSON.stringify(runpodStatus, null, 2));
+    }
   });
 
   // Set up event listeners for orchestrator2
@@ -86,16 +95,25 @@ async function main() {
     console.log(`✅ [Orchestrator2] Job ${clientJobId} submitted to Runpod: ${runpodJobId}`, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
   });
 
-  orchestrator2.on("progress", ({ clientJobId, status, metrics, metadata }) => {
+  orchestrator2.on("progress", ({ clientJobId, status, metrics, runpodStatus, metadata }) => {
     console.log(`🔄 [Orchestrator2] Job ${clientJobId} status: ${status}`, metrics, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+    if (runpodStatus) {
+      console.log(`📊 [Orchestrator2] RunpodStatus for ${clientJobId}:`, JSON.stringify(runpodStatus, null, 2));
+    }
   });
 
-  orchestrator2.on("completed", ({ clientJobId, output, metadata }) => {
+  orchestrator2.on("completed", ({ clientJobId, output, runpodStatus, metadata }) => {
     console.log(`🎉 [Orchestrator2] Job ${clientJobId} completed:`, output, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+    if (runpodStatus) {
+      console.log(`📊 [Orchestrator2] Final RunpodStatus for ${clientJobId}:`, JSON.stringify(runpodStatus, null, 2));
+    }
   });
 
-  orchestrator2.on("failed", ({ clientJobId, error, status, metadata }) => {
+  orchestrator2.on("failed", ({ clientJobId, error, status, runpodStatus, metadata }) => {
     console.error(`❌ [Orchestrator2] Job ${clientJobId} failed (${status}):`, error, metadata ? `(metadata: ${JSON.stringify(metadata)})` : '');
+    if (runpodStatus) {
+      console.log(`📊 [Orchestrator2] Final RunpodStatus for ${clientJobId}:`, JSON.stringify(runpodStatus, null, 2));
+    }
   });
 
   try {
@@ -155,7 +173,13 @@ async function main() {
 
     console.log("\n--- Results ---");
     console.log("Job1 result:", result1.status);
+    if (result1.runpodStatus) {
+      console.log("Job1 runpodStatus:", JSON.stringify(result1.runpodStatus, null, 2));
+    }
     console.log("Job2 result:", result2.status);
+    if (result2.runpodStatus) {
+      console.log("Job2 runpodStatus:", JSON.stringify(result2.runpodStatus, null, 2));
+    }
 
     console.log("\n✅ Central dispatcher architecture working correctly!");
     console.log("Jobs were routed to the correct orchestrators based on endpointId");

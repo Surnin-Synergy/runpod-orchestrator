@@ -161,6 +161,7 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
     status: "COMPLETED"|"FAILED"|"TIMED_OUT"|"CANCELED"; 
     output?: any; 
     error?: any;
+    runpodStatus?: any;
     metadata?: Record<string, any>;
   }> {
     return new Promise((resolve, reject) => {
@@ -178,23 +179,25 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
         this.off('failed', onFailed);
       };
       
-      const onCompleted = (payload: { clientJobId: string; output: any; metadata?: Record<string, any> }) => {
+      const onCompleted = (payload: { clientJobId: string; output: any; runpodStatus?: any; metadata?: Record<string, any> }) => {
         if (payload.clientJobId === clientJobId) {
           cleanup();
           resolve({
             status: 'COMPLETED',
             output: payload.output,
+            runpodStatus: payload.runpodStatus,
             metadata: payload.metadata
           });
         }
       };
       
-      const onFailed = (payload: { clientJobId: string; error: any; status: string; metadata?: Record<string, any> }) => {
+      const onFailed = (payload: { clientJobId: string; error: any; status: string; runpodStatus?: any; metadata?: Record<string, any> }) => {
         if (payload.clientJobId === clientJobId) {
           cleanup();
           resolve({
             status: payload.status as "FAILED"|"TIMED_OUT"|"CANCELED",
             error: payload.error,
+            runpodStatus: payload.runpodStatus,
             metadata: payload.metadata
           });
         }
@@ -208,12 +211,14 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
             resolve({
               status: 'COMPLETED',
               output: job.output,
+              runpodStatus: job.runpodStatus,
               metadata: job.metadata
             });
           } else {
             resolve({
               status: job.status as "FAILED"|"TIMED_OUT"|"CANCELED",
               error: job.error,
+              runpodStatus: job.runpodStatus,
               metadata: job.metadata
             });
           }

@@ -244,6 +244,7 @@ export class RedisUtils {
       status: hash.status as RunpodTaskStatus,
       output: hash.output ? JSON.parse(hash.output) : undefined,
       error: hash.error ? JSON.parse(hash.error) : undefined,
+      runpodStatus: hash.runpodStatus ? JSON.parse(hash.runpodStatus) : undefined,
       createdAt: parseInt(hash.createdAt) || 0,
       updatedAt: parseInt(hash.updatedAt) || 0,
       attempt: parseInt(hash.attempt) || 0,
