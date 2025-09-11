@@ -33,8 +33,6 @@ export async function createOrchestrator(
   const redisKey = getRedisKey(redisInstance);
   let dispatcher = dispatchers.get(redisKey);
 
-  console.log("redisKey", redisKey);
-
   if (!dispatcher) {
     dispatcher = new CentralDispatcher(redisInstance, config);
     await dispatcher.start();
