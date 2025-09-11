@@ -1,41 +1,69 @@
-export { RunpodOrchestratorImpl as RunpodOrchestrator } from './orchestrator';
-export * from './types';
-export * from './constants';
-export * from './dispatcher';
+export { RunpodOrchestratorImpl as RunpodOrchestrator } from "./orchestrator";
+export * from "./types";
+export * from "./constants";
+export * from "./dispatcher";
 
-import { RunpodOrchestratorImpl } from './orchestrator';
-import { CentralDispatcher } from './dispatcher';
-import { RunpodOrchestratorConfig } from './types';
-import { Redis } from 'ioredis';
+import { RunpodOrchestratorImpl } from "./orchestrator";
+import { CentralDispatcher } from "./dispatcher";
+import { RunpodOrchestratorConfig } from "./types";
+import { Redis } from "ioredis";
 
-// Global dispatcher instance
-let globalDispatcher: CentralDispatcher | null = null;
+// Map of Redis connection strings to dispatcher instances
+const dispatchers: Map<string, CentralDispatcher> = new Map();
+
+function getRedisKey(redis: Redis): string {
+  // Create a unique key based on Redis connection details
+  const options = redis.options || {};
+  const host = options.host || "localhost";
+  const port = options.port || 6379;
+  const db = options.db || 0;
+  return `${host}:${port}:${db}`;
+}
 
 export async function createOrchestrator(
-  config: RunpodOrchestratorConfig,
-  redis?: Redis
+  config: RunpodOrchestratorConfig
 ): Promise<RunpodOrchestratorImpl> {
-  // Create or get global dispatcher
-  if (!globalDispatcher) {
-    const redisInstance = redis || new (require('ioredis'))(
-      'url' in config.redis ? config.redis.url || 'redis://localhost:6379' : 'redis://localhost:6379'
-    );
-    globalDispatcher = new CentralDispatcher(redisInstance, config);
-    await globalDispatcher.start();
+  // Create Redis instance
+  const redisInstance =
+    "client" in config.redis
+      ? config.redis.client
+      : new Redis(config.redis.url || "redis://localhost:6379");
+
+  // Get or create dispatcher for this Redis instance
+  const redisKey = getRedisKey(redisInstance);
+  let dispatcher = dispatchers.get(redisKey);
+
+  console.log("redisKey", redisKey);
+
+  if (!dispatcher) {
+    dispatcher = new CentralDispatcher(redisInstance, config);
+    await dispatcher.start();
+    dispatchers.set(redisKey, dispatcher);
   }
 
-  const orchestrator = new RunpodOrchestratorImpl(config, globalDispatcher);
+  const orchestrator = new RunpodOrchestratorImpl(config, dispatcher);
   await orchestrator.start();
   return orchestrator;
 }
 
 export async function getGlobalDispatcher(): Promise<CentralDispatcher | null> {
-  return globalDispatcher;
+  // Return the first dispatcher for backward compatibility
+  return dispatchers.values().next().value || null;
 }
 
+export async function getAllDispatchers(): Promise<CentralDispatcher[]> {
+  return Array.from(dispatchers.values());
+}
+
+export async function stopAllDispatchers(): Promise<void> {
+  const stopPromises = Array.from(dispatchers.values()).map((dispatcher) =>
+    dispatcher.stop()
+  );
+  await Promise.all(stopPromises);
+  dispatchers.clear();
+}
+
+// Backward compatibility
 export async function stopGlobalDispatcher(): Promise<void> {
-  if (globalDispatcher) {
-    await globalDispatcher.stop();
-    globalDispatcher = null;
-  }
+  await stopAllDispatchers();
 }
