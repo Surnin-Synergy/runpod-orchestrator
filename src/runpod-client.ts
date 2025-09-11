@@ -74,7 +74,10 @@ export class RunpodClient {
       throw new Error(`Runpod status error: ${data.errors[0].message}`);
     }
 
-    return data;
+    return {
+      id: jobId,
+      ...data,
+    };
   }
 
   async cancel(jobId: string): Promise<void> {
