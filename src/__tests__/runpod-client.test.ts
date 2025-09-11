@@ -65,11 +65,10 @@ describe('RunpodClient', () => {
     it('should get job status successfully', async () => {
       const mockResponse = {
         ok: true,
-        json: jest.fn().mockResolvedValue({ 
+        json: jest.fn().mockResolvedValue({
           status: 'IN_PROGRESS',
           output: null,
           error: null,
-          metrics: { gpu_util: 50 }
         }),
       };
       mockFetch.mockResolvedValue(mockResponse as any);
@@ -81,7 +80,6 @@ describe('RunpodClient', () => {
         status: 'IN_PROGRESS',
         output: null,
         error: null,
-        metrics: { gpu_util: 50 }
       });
     });
 

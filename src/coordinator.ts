@@ -347,7 +347,6 @@ export class Coordinator extends EventEmitter {
     this.emit("progress", {
       clientJobId: job.clientJobId,
       status: "IN_PROGRESS",
-      metrics: runpodStatus.metrics,
       runpodStatus: runpodStatus,
       metadata: job.metadata,
     });

@@ -66,7 +66,7 @@ export interface JobRecord {
 
 export interface OrchestratorEvents {
   submitted: (payload: { clientJobId: string; runpodJobId: string; metadata?: Record<string, any> }) => void;
-  progress: (payload: { clientJobId: string; status: RunpodTaskStatus; metrics?: any; runpodStatus?: any; metadata?: Record<string, any> }) => void;
+  progress: (payload: { clientJobId: string; status: RunpodTaskStatus; runpodStatus?: any; metadata?: Record<string, any> }) => void;
   completed: (payload: { clientJobId: string; output: any; runpodStatus?: any; metadata?: Record<string, any> }) => void;
   failed: (payload: { clientJobId: string; error: any; status: RunpodTaskStatus; runpodStatus?: any; metadata?: Record<string, any> }) => void;
 }
@@ -93,7 +93,6 @@ export interface RunpodJobStatus {
   status: string;
   output?: any;
   error?: any;
-  metrics?: any;
 }
 
 export interface RunpodRunResponse {

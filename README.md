@@ -33,41 +33,122 @@ const orchestrator = await createOrchestrator({
   dedupe: { enable: true, useInputHash: true },
 });
 
-// Listen for events
-orchestrator.on('completed', ({ clientJobId, output, metadata }) => {
+// Listen for events with runpodStatus
+orchestrator.on('progress', ({ clientJobId, status, runpodStatus, metadata }) => {
+  console.log('Job progress:', clientJobId, status);
+  if (runpodStatus) {
+    console.log('Runpod technical data:', runpodStatus);
+    console.log('Runpod status:', runpodStatus.status);
+  }
+});
+
+orchestrator.on('completed', ({ clientJobId, output, runpodStatus, metadata }) => {
   console.log('Job completed:', clientJobId, output);
-  if (metadata?.userId) {
-    console.log('User:', metadata.userId);
+  if (runpodStatus) {
+    console.log('Final Runpod status:', runpodStatus.status);
+    console.log('Complete technical data:', runpodStatus);
   }
 });
 
-orchestrator.on('failed', ({ clientJobId, error, status, metadata }) => {
+orchestrator.on('failed', ({ clientJobId, error, status, runpodStatus, metadata }) => {
   console.error('Job failed:', clientJobId, error, status);
-  if (metadata?.userId) {
-    console.log('User:', metadata.userId);
+  if (runpodStatus) {
+    console.log('Runpod error details:', runpodStatus.error);
+    console.log('Runpod status at failure:', runpodStatus.status);
   }
 });
 
-// Submit a job with metadata
+// Submit a job
 const { clientJobId } = await orchestrator.submit({
   clientJobId: crypto.randomUUID(),
   input: { prompt: "A cat in space" },
-  inputHash: "sha256:...", // optional for deduplication
-  metadata: {
-    userId: "user-123",
-    priority: "high",
-    source: "web-app"
-  }
+  metadata: { userId: "user-123" }
 });
 
-// Wait for result
+// Wait for result with runpodStatus
 const result = await orchestrator.awaitResult(clientJobId, 15 * 60_000);
 if (result.status === "COMPLETED") {
   console.log('Result:', result.output);
-  console.log('User:', result.metadata?.userId);
+  console.log('Runpod status:', result.runpodStatus?.status);
+  console.log('Technical data:', result.runpodStatus);
 } else {
   console.error('Failed:', result.error);
+  console.log('Runpod error details:', result.runpodStatus?.error);
 }
+```
+
+## RunpodStatus - Technical Data Access
+
+The orchestrator now provides access to the complete `runpodStatus` object from Runpod's API, giving you detailed technical information about your jobs.
+
+### What's Available in runpodStatus
+
+The `runpodStatus` object contains all the technical data returned by Runpod's status API:
+
+```typescript
+interface RunpodJobStatus {
+  id: string;           // Runpod job ID
+  status: string;       // Current Runpod status (e.g., "IN_QUEUE", "RUNNING", "COMPLETED")
+  output?: any;         // Job output (when completed)
+  error?: any;          // Error details (when failed)
+}
+```
+
+### Accessing runpodStatus
+
+The `runpodStatus` is available in:
+
+1. **Event handlers** - Real-time updates during job execution
+2. **awaitResult()** - Final status when job completes
+3. **get()** - Current status when querying job state
+
+```typescript
+// Real-time monitoring
+orchestrator.on('progress', ({ clientJobId, runpodStatus }) => {
+  if (runpodStatus) {
+    console.log('Current Runpod status:', runpodStatus.status);
+    console.log('Runpod job ID:', runpodStatus.id);
+  }
+});
+
+// Final result
+const result = await orchestrator.awaitResult(jobId);
+console.log('Final Runpod status:', result.runpodStatus?.status);
+console.log('Complete technical data:', result.runpodStatus);
+
+// Current job state
+const job = await orchestrator.get(jobId);
+console.log('Current Runpod status:', job?.runpodStatus?.status);
+```
+
+### Example: Monitoring Job Performance
+
+```typescript
+orchestrator.on('progress', ({ clientJobId, runpodStatus }) => {
+  console.log(`Job ${clientJobId} status:`, runpodStatus?.status);
+  console.log(`Runpod job ID:`, runpodStatus?.id);
+});
+
+orchestrator.on('completed', ({ clientJobId, runpodStatus }) => {
+  console.log(`Job ${clientJobId} completed with status:`, runpodStatus?.status);
+  console.log('Complete technical data:', runpodStatus);
+});
+```
+
+### Example: Error Analysis
+
+```typescript
+orchestrator.on('failed', ({ clientJobId, runpodStatus }) => {
+  console.log(`Job ${clientJobId} failed with Runpod status:`, runpodStatus?.status);
+  console.log(`Runpod job ID:`, runpodStatus?.id);
+  
+  if (runpodStatus?.error) {
+    console.log('Runpod error details:', runpodStatus.error);
+  }
+  
+  // Log complete technical data for debugging
+  console.log('Complete runpodStatus:', runpodStatus);
+});
 ```
 
 ## Custom Namespace
@@ -132,7 +213,7 @@ interface SubmitOptions {
 
 Wait for a job to complete with optional timeout.
 
-**Returns:** `Promise<{ status: "COMPLETED"|"FAILED"|"TIMED_OUT"|"CANCELED"; output?: any; error?: any; metadata?: Record<string, any> }>`
+**Returns:** `Promise<{ status: "COMPLETED"|"FAILED"|"TIMED_OUT"|"CANCELED"; output?: any; error?: any; runpodStatus?: any; metadata?: Record<string, any> }>`
 
 ### `get(clientJobId: string)`
 
@@ -156,9 +237,9 @@ Recover all non-terminal jobs (useful on startup).
 
 ```typescript
 orchestrator.on('submitted', ({ clientJobId, runpodJobId, metadata }) => {});
-orchestrator.on('progress', ({ clientJobId, status, metrics, metadata }) => {});
-orchestrator.on('completed', ({ clientJobId, output, metadata }) => {});
-orchestrator.on('failed', ({ clientJobId, error, status, metadata }) => {});
+orchestrator.on('progress', ({ clientJobId, status, runpodStatus, metadata }) => {});
+orchestrator.on('completed', ({ clientJobId, output, runpodStatus, metadata }) => {});
+orchestrator.on('failed', ({ clientJobId, error, status, runpodStatus, metadata }) => {});
 ```
 
 ## Metadata Support

@@ -79,7 +79,6 @@ export class RunpodClient {
       status: data.status,
       output: data.output,
       error: data.error,
-      metrics: data.metrics,
     };
   }
 
