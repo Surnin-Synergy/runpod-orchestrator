@@ -14,11 +14,11 @@ import {
 } from './types';
 import { DEFAULT_CONFIG, TERMINAL_STATUSES } from './constants';
 
-export class RunpodOrchestratorImpl<TMetadata = Record<string, any>> extends EventEmitter implements RunpodOrchestrator<TMetadata>, OrchestratorInstance, TypedEventEmitter<TMetadata> {
+export class RunpodOrchestratorImpl<TMetadata = Record<string, any>, TOutput = any> extends EventEmitter implements RunpodOrchestrator<TMetadata, TOutput>, OrchestratorInstance, TypedEventEmitter<TMetadata, TOutput> {
   private redis: Redis;
-  private redisUtils: RedisUtils<TMetadata>;
+  private redisUtils: RedisUtils<TMetadata, TOutput>;
   private runpodClient: RunpodClient;
-  private coordinator: Coordinator<TMetadata>;
+  private coordinator: Coordinator<TMetadata, TOutput>;
   private config: RunpodOrchestratorConfig;
   private isStarted: boolean = false;
   private dispatcher: CentralDispatcher;
@@ -36,12 +36,12 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>> extends Eve
       this.redis = new Redis(config.redis.url || 'redis://localhost:6379');
     }
     
-    this.redisUtils = new RedisUtils<TMetadata>(this.redis, this.config.namespace);
+    this.redisUtils = new RedisUtils<TMetadata, TOutput>(this.redis, this.config.namespace);
     this.runpodClient = new RunpodClient(
       config.runpod.apiKey,
       config.runpod.endpointId
     );
-    this.coordinator = new Coordinator<TMetadata>(this.redis, this.runpodClient, this.config);
+    this.coordinator = new Coordinator<TMetadata, TOutput>(this.redis, this.runpodClient, this.config);
     
     // Forward events from coordinator
     this.coordinator.on('submitted', (payload) => this.emit('submitted', payload));
@@ -79,7 +79,7 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>> extends Eve
     this.log('info', 'Orchestrator started. Endpoint ID: ' + this.config.runpod.endpointId);
   }
 
-  async submit(opts: SubmitOptions<TMetadata>): Promise<{ clientJobId: string; runpodJobId: string }> {
+  async submit(opts: SubmitOptions<TMetadata, TOutput>): Promise<{ clientJobId: string; runpodJobId: string }> {
     const { clientJobId, input, inputHash, metadata } = opts;
     
     // Check for existing job (idempotency)
@@ -108,7 +108,7 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>> extends Eve
     }
     
     // Create job record
-    const job: JobRecord<TMetadata> = {
+    const job: JobRecord<TMetadata, TOutput> = {
       clientJobId,
       runpodJobId: null,
       status: 'SUBMITTED',
@@ -160,7 +160,7 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>> extends Eve
     timeoutMs: number = 15 * 60 * 1000
   ): Promise<{ 
     status: "COMPLETED"|"FAILED"|"TIMED_OUT"|"CANCELED"; 
-    output?: any; 
+    output?: TOutput; 
     error?: any;
     runpodStatus?: any;
     metadata?: TMetadata;
@@ -180,7 +180,7 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>> extends Eve
         this.off('failed', onFailed);
       };
       
-      const onCompleted = (payload: { clientJobId: string; output: any; runpodStatus?: any; metadata?: TMetadata }) => {
+      const onCompleted = (payload: { clientJobId: string; output: TOutput; runpodStatus?: any; metadata?: TMetadata }) => {
         if (payload.clientJobId === clientJobId) {
           cleanup();
           resolve({
@@ -236,7 +236,7 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>> extends Eve
     });
   }
 
-  async get(clientJobId: string): Promise<JobRecord<TMetadata> | null> {
+  async get(clientJobId: string): Promise<JobRecord<TMetadata, TOutput> | null> {
     return await this.redisUtils.getJob(clientJobId);
   }
 
@@ -335,15 +335,15 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>> extends Eve
   }
 
   // Typed event emitter methods
-  on<E extends keyof OrchestratorEvents<TMetadata>>(event: E, handler: OrchestratorEvents<TMetadata>[E]): this {
+  on<E extends keyof OrchestratorEvents<TMetadata, TOutput>>(event: E, handler: OrchestratorEvents<TMetadata, TOutput>[E]): this {
     return super.on(event as string, handler as (...args: any[]) => void);
   }
 
-  off<E extends keyof OrchestratorEvents<TMetadata>>(event: E, handler: OrchestratorEvents<TMetadata>[E]): this {
+  off<E extends keyof OrchestratorEvents<TMetadata, TOutput>>(event: E, handler: OrchestratorEvents<TMetadata, TOutput>[E]): this {
     return super.off(event as string, handler as (...args: any[]) => void);
   }
 
-  emit<E extends keyof OrchestratorEvents<TMetadata>>(event: E, ...args: Parameters<OrchestratorEvents<TMetadata>[E]>): boolean {
+  emit<E extends keyof OrchestratorEvents<TMetadata, TOutput>>(event: E, ...args: Parameters<OrchestratorEvents<TMetadata, TOutput>[E]>): boolean {
     return super.emit(event as string, ...args);
   }
 }

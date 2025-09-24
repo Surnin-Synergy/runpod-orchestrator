@@ -9,7 +9,7 @@ import { RunpodOrchestratorConfig } from "./types";
 import { Redis } from "ioredis";
 
 // Map of Redis connection strings to dispatcher instances
-const dispatchers: Map<string, CentralDispatcher<any>> = new Map();
+const dispatchers: Map<string, CentralDispatcher<any, any>> = new Map();
 
 function getRedisKey(redis: Redis): string {
   // Create a unique key based on Redis connection details
@@ -20,9 +20,9 @@ function getRedisKey(redis: Redis): string {
   return `${host}:${port}:${db}`;
 }
 
-export async function createOrchestrator<TMetadata = Record<string, any>>(
+export async function createOrchestrator<TMetadata = Record<string, any>, TOutput = any>(
   config: RunpodOrchestratorConfig
-): Promise<RunpodOrchestratorImpl<TMetadata>> {
+): Promise<RunpodOrchestratorImpl<TMetadata, TOutput>> {
   // Create Redis instance
   const redisInstance =
     "client" in config.redis
@@ -34,22 +34,22 @@ export async function createOrchestrator<TMetadata = Record<string, any>>(
   let dispatcher = dispatchers.get(redisKey);
 
   if (!dispatcher) {
-    dispatcher = new CentralDispatcher<TMetadata>(redisInstance, config);
+    dispatcher = new CentralDispatcher<TMetadata, TOutput>(redisInstance, config);
     await dispatcher.start();
     dispatchers.set(redisKey, dispatcher);
   }
 
-  const orchestrator = new RunpodOrchestratorImpl<TMetadata>(config, dispatcher);
+  const orchestrator = new RunpodOrchestratorImpl<TMetadata, TOutput>(config, dispatcher);
   await orchestrator.start();
   return orchestrator;
 }
 
-export async function getGlobalDispatcher(): Promise<CentralDispatcher<any> | null> {
+export async function getGlobalDispatcher(): Promise<CentralDispatcher<any, any> | null> {
   // Return the first dispatcher for backward compatibility
   return dispatchers.values().next().value || null;
 }
 
-export async function getAllDispatchers(): Promise<CentralDispatcher<any>[]> {
+export async function getAllDispatchers(): Promise<CentralDispatcher<any, any>[]> {
   return Array.from(dispatchers.values());
 }
 
