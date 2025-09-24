@@ -11,8 +11,8 @@ export interface OrchestratorInstance {
   isHealthy: () => boolean;
 }
 
-export class CentralDispatcher extends EventEmitter {
-  private redisUtils: RedisUtils;
+export class CentralDispatcher<TMetadata = Record<string, any>> extends EventEmitter {
+  private redisUtils: RedisUtils<TMetadata>;
   private orchestrators: Map<string, OrchestratorInstance> = new Map();
   private isRunning: boolean = false;
   private pollingInterval?: NodeJS.Timeout;
@@ -23,7 +23,7 @@ export class CentralDispatcher extends EventEmitter {
     config: RunpodOrchestratorConfig
   ) {
     super();
-    this.redisUtils = new RedisUtils(redis, config.namespace);
+    this.redisUtils = new RedisUtils<TMetadata>(redis, config.namespace);
     this.config = config;
   }
 

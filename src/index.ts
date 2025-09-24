@@ -9,7 +9,7 @@ import { RunpodOrchestratorConfig } from "./types";
 import { Redis } from "ioredis";
 
 // Map of Redis connection strings to dispatcher instances
-const dispatchers: Map<string, CentralDispatcher> = new Map();
+const dispatchers: Map<string, CentralDispatcher<any>> = new Map();
 
 function getRedisKey(redis: Redis): string {
   // Create a unique key based on Redis connection details
@@ -20,9 +20,9 @@ function getRedisKey(redis: Redis): string {
   return `${host}:${port}:${db}`;
 }
 
-export async function createOrchestrator(
+export async function createOrchestrator<TMetadata = Record<string, any>>(
   config: RunpodOrchestratorConfig
-): Promise<RunpodOrchestratorImpl> {
+): Promise<RunpodOrchestratorImpl<TMetadata>> {
   // Create Redis instance
   const redisInstance =
     "client" in config.redis
@@ -34,22 +34,22 @@ export async function createOrchestrator(
   let dispatcher = dispatchers.get(redisKey);
 
   if (!dispatcher) {
-    dispatcher = new CentralDispatcher(redisInstance, config);
+    dispatcher = new CentralDispatcher<TMetadata>(redisInstance, config);
     await dispatcher.start();
     dispatchers.set(redisKey, dispatcher);
   }
 
-  const orchestrator = new RunpodOrchestratorImpl(config, dispatcher);
+  const orchestrator = new RunpodOrchestratorImpl<TMetadata>(config, dispatcher);
   await orchestrator.start();
   return orchestrator;
 }
 
-export async function getGlobalDispatcher(): Promise<CentralDispatcher | null> {
+export async function getGlobalDispatcher(): Promise<CentralDispatcher<any> | null> {
   // Return the first dispatcher for backward compatibility
   return dispatchers.values().next().value || null;
 }
 
-export async function getAllDispatchers(): Promise<CentralDispatcher[]> {
+export async function getAllDispatchers(): Promise<CentralDispatcher<any>[]> {
   return Array.from(dispatchers.values());
 }
 

@@ -2,7 +2,7 @@ import { Redis } from 'ioredis';
 import { JobRecord, RunpodTaskStatus, LockResult } from './types';
 import { createRedisKeys, DEFAULT_CONFIG } from './constants';
 
-export class RedisUtils {
+export class RedisUtils<TMetadata = Record<string, any>> {
   private redisKeys: ReturnType<typeof createRedisKeys>;
 
   constructor(
@@ -13,7 +13,7 @@ export class RedisUtils {
   }
 
   // Job hash operations
-  async createJob(job: JobRecord): Promise<boolean> {
+  async createJob(job: JobRecord<TMetadata>): Promise<boolean> {
     const key = this.redisKeys.job(job.clientJobId);
     const fields = this.jobToHash(job);
     
@@ -30,7 +30,7 @@ export class RedisUtils {
     return results?.[0]?.[1] === 1; // First command (HSETNX) succeeded
   }
 
-  async updateJob(clientJobId: string, updates: Partial<JobRecord>): Promise<void> {
+  async updateJob(clientJobId: string, updates: Partial<JobRecord<TMetadata>>): Promise<void> {
     const key = this.redisKeys.job(clientJobId);
     const fields = this.jobToHash(updates);
     
@@ -41,7 +41,7 @@ export class RedisUtils {
     await this.redis.hset(key, 'updatedAt', Date.now());
   }
 
-  async getJob(clientJobId: string): Promise<JobRecord | null> {
+  async getJob(clientJobId: string): Promise<JobRecord<TMetadata> | null> {
     const key = this.redisKeys.job(clientJobId);
     const hash = await this.redis.hgetall(key);
     
@@ -160,7 +160,7 @@ export class RedisUtils {
   }
 
   // Recovery operations
-  async getAllNonTerminalJobs(): Promise<JobRecord[]> {
+  async getAllNonTerminalJobs(): Promise<JobRecord<TMetadata>[]> {
     const pattern = this.redisKeys.job('*');
     const keys = await this.redis.keys(pattern);
     
@@ -172,7 +172,7 @@ export class RedisUtils {
     keys.forEach(key => pipeline.hgetall(key));
     
     const results = await pipeline.exec();
-    const jobs: JobRecord[] = [];
+    const jobs: JobRecord<TMetadata>[] = [];
     
     results?.forEach((result, index) => {
       if (result?.[1] && typeof result[1] === 'object') {
@@ -191,7 +191,7 @@ export class RedisUtils {
     clientJobId: string, 
     fromStatus: RunpodTaskStatus, 
     toStatus: RunpodTaskStatus,
-    updates: Partial<JobRecord> = {}
+    updates: Partial<JobRecord<TMetadata>> = {}
   ): Promise<boolean> {
     const key = this.redisKeys.job(clientJobId);
     
@@ -221,7 +221,7 @@ export class RedisUtils {
     return this.redisKeys.job(clientJobId);
   }
 
-  private jobToHash(job: Partial<JobRecord>): Record<string, string> {
+  private jobToHash(job: Partial<JobRecord<TMetadata>>): Record<string, string> {
     const hash: Record<string, string> = {};
     
     Object.entries(job).forEach(([key, value]) => {
@@ -237,8 +237,8 @@ export class RedisUtils {
     return hash;
   }
 
-  private hashToJob(hash: Record<string, string>): JobRecord {
-    const job: JobRecord = {
+  private hashToJob(hash: Record<string, string>): JobRecord<TMetadata> {
+    const job: JobRecord<TMetadata> = {
       clientJobId: hash.clientJobId,
       runpodJobId: hash.runpodJobId || null,
       status: hash.status as RunpodTaskStatus,

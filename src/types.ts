@@ -37,14 +37,14 @@ export interface RunpodOrchestratorConfig {
   };
 }
 
-export interface SubmitOptions {
+export interface SubmitOptions<TMetadata = Record<string, any>> {
   clientJobId: string;
   input: unknown;
   inputHash?: string;
-  metadata?: Record<string, any>;
+  metadata?: TMetadata;
 }
 
-export interface JobRecord {
+export interface JobRecord<TMetadata = Record<string, any>> {
   clientJobId: string;
   runpodJobId?: string | null;
   status: RunpodTaskStatus;
@@ -61,30 +61,35 @@ export interface JobRecord {
   endpointId?: string;
   input?: string;
   inputHash?: string;
-  metadata?: Record<string, any>;
+  metadata?: TMetadata;
 }
 
-export interface OrchestratorEvents {
-  submitted: (payload: { clientJobId: string; runpodJobId: string; metadata?: Record<string, any> }) => void;
-  progress: (payload: { clientJobId: string; status: RunpodTaskStatus; runpodStatus?: any; metadata?: Record<string, any> }) => void;
-  completed: (payload: { clientJobId: string; output: any; runpodStatus?: any; metadata?: Record<string, any> }) => void;
-  failed: (payload: { clientJobId: string; error: any; status: RunpodTaskStatus; runpodStatus?: any; metadata?: Record<string, any> }) => void;
+export interface OrchestratorEvents<TMetadata = Record<string, any>> {
+  submitted: (payload: { clientJobId: string; runpodJobId: string; metadata?: TMetadata }) => void;
+  progress: (payload: { clientJobId: string; status: RunpodTaskStatus; runpodStatus?: any; metadata?: TMetadata }) => void;
+  completed: (payload: { clientJobId: string; output: any; runpodStatus?: any; metadata?: TMetadata }) => void;
+  failed: (payload: { clientJobId: string; error: any; status: RunpodTaskStatus; runpodStatus?: any; metadata?: TMetadata }) => void;
 }
 
-export interface RunpodOrchestrator {
-  submit(opts: SubmitOptions): Promise<{ clientJobId: string; runpodJobId: string }>;
+// Typed EventEmitter interface for orchestrator events
+export interface TypedEventEmitter<TMetadata = Record<string, any>> {
+  on<E extends keyof OrchestratorEvents<TMetadata>>(event: E, handler: OrchestratorEvents<TMetadata>[E]): this;
+  off<E extends keyof OrchestratorEvents<TMetadata>>(event: E, handler: OrchestratorEvents<TMetadata>[E]): this;
+  emit<E extends keyof OrchestratorEvents<TMetadata>>(event: E, ...args: Parameters<OrchestratorEvents<TMetadata>[E]>): boolean;
+}
+
+export interface RunpodOrchestrator<TMetadata = Record<string, any>> extends TypedEventEmitter<TMetadata> {
+  submit(opts: SubmitOptions<TMetadata>): Promise<{ clientJobId: string; runpodJobId: string }>;
   awaitResult(clientJobId: string, timeoutMs?: number): Promise<{ 
     status: "COMPLETED"|"FAILED"|"TIMED_OUT"|"CANCELED"; 
     output?: any; 
     error?: any;
     runpodStatus?: any;
-    metadata?: Record<string, any>;
+    metadata?: TMetadata;
   }>;
-  get(clientJobId: string): Promise<JobRecord | null>;
+  get(clientJobId: string): Promise<JobRecord<TMetadata> | null>;
   cancel(clientJobId: string): Promise<void>;
   recoverAllPending(): Promise<number>;
-  on<E extends keyof OrchestratorEvents>(event: E, handler: OrchestratorEvents[E]): this;
-  off<E extends keyof OrchestratorEvents>(event: E, handler: OrchestratorEvents[E]): this;
   close(): Promise<void>;
 }
 

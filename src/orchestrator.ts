@@ -9,15 +9,16 @@ import {
   RunpodOrchestratorConfig, 
   SubmitOptions, 
   JobRecord,
-  OrchestratorEvents 
+  OrchestratorEvents,
+  TypedEventEmitter
 } from './types';
 import { DEFAULT_CONFIG, TERMINAL_STATUSES } from './constants';
 
-export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrchestrator, OrchestratorInstance {
+export class RunpodOrchestratorImpl<TMetadata = Record<string, any>> extends EventEmitter implements RunpodOrchestrator<TMetadata>, OrchestratorInstance, TypedEventEmitter<TMetadata> {
   private redis: Redis;
-  private redisUtils: RedisUtils;
+  private redisUtils: RedisUtils<TMetadata>;
   private runpodClient: RunpodClient;
-  private coordinator: Coordinator;
+  private coordinator: Coordinator<TMetadata>;
   private config: RunpodOrchestratorConfig;
   private isStarted: boolean = false;
   private dispatcher: CentralDispatcher;
@@ -35,12 +36,12 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
       this.redis = new Redis(config.redis.url || 'redis://localhost:6379');
     }
     
-    this.redisUtils = new RedisUtils(this.redis, this.config.namespace);
+    this.redisUtils = new RedisUtils<TMetadata>(this.redis, this.config.namespace);
     this.runpodClient = new RunpodClient(
       config.runpod.apiKey,
       config.runpod.endpointId
     );
-    this.coordinator = new Coordinator(this.redis, this.runpodClient, this.config);
+    this.coordinator = new Coordinator<TMetadata>(this.redis, this.runpodClient, this.config);
     
     // Forward events from coordinator
     this.coordinator.on('submitted', (payload) => this.emit('submitted', payload));
@@ -78,7 +79,7 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
     this.log('info', 'Orchestrator started. Endpoint ID: ' + this.config.runpod.endpointId);
   }
 
-  async submit(opts: SubmitOptions): Promise<{ clientJobId: string; runpodJobId: string }> {
+  async submit(opts: SubmitOptions<TMetadata>): Promise<{ clientJobId: string; runpodJobId: string }> {
     const { clientJobId, input, inputHash, metadata } = opts;
     
     // Check for existing job (idempotency)
@@ -107,7 +108,7 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
     }
     
     // Create job record
-    const job: JobRecord = {
+    const job: JobRecord<TMetadata> = {
       clientJobId,
       runpodJobId: null,
       status: 'SUBMITTED',
@@ -162,7 +163,7 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
     output?: any; 
     error?: any;
     runpodStatus?: any;
-    metadata?: Record<string, any>;
+    metadata?: TMetadata;
   }> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -179,7 +180,7 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
         this.off('failed', onFailed);
       };
       
-      const onCompleted = (payload: { clientJobId: string; output: any; runpodStatus?: any; metadata?: Record<string, any> }) => {
+      const onCompleted = (payload: { clientJobId: string; output: any; runpodStatus?: any; metadata?: TMetadata }) => {
         if (payload.clientJobId === clientJobId) {
           cleanup();
           resolve({
@@ -191,7 +192,7 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
         }
       };
       
-      const onFailed = (payload: { clientJobId: string; error: any; status: string; runpodStatus?: any; metadata?: Record<string, any> }) => {
+      const onFailed = (payload: { clientJobId: string; error: any; status: string; runpodStatus?: any; metadata?: TMetadata }) => {
         if (payload.clientJobId === clientJobId) {
           cleanup();
           resolve({
@@ -235,7 +236,7 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
     });
   }
 
-  async get(clientJobId: string): Promise<JobRecord | null> {
+  async get(clientJobId: string): Promise<JobRecord<TMetadata> | null> {
     return await this.redisUtils.getJob(clientJobId);
   }
 
@@ -331,5 +332,18 @@ export class RunpodOrchestratorImpl extends EventEmitter implements RunpodOrches
     if (logger) {
       logger(`[Orchestrator] ${message}`, ...args);
     }
+  }
+
+  // Typed event emitter methods
+  on<E extends keyof OrchestratorEvents<TMetadata>>(event: E, handler: OrchestratorEvents<TMetadata>[E]): this {
+    return super.on(event as string, handler as (...args: any[]) => void);
+  }
+
+  off<E extends keyof OrchestratorEvents<TMetadata>>(event: E, handler: OrchestratorEvents<TMetadata>[E]): this {
+    return super.off(event as string, handler as (...args: any[]) => void);
+  }
+
+  emit<E extends keyof OrchestratorEvents<TMetadata>>(event: E, ...args: Parameters<OrchestratorEvents<TMetadata>[E]>): boolean {
+    return super.emit(event as string, ...args);
   }
 }
