@@ -79,7 +79,8 @@ describe('RunpodOrchestrator', () => {
       
       const result = await orchestrator.submit({
         clientJobId: 'test-job-1',
-        input: { prompt: 'test prompt' }
+        input: { prompt: 'test prompt' },
+        metadata: { test: true }
       });
       
       expect(result.clientJobId).toBe('test-job-1');
@@ -118,7 +119,8 @@ describe('RunpodOrchestrator', () => {
       
       const result = await orchestrator.submit({
         clientJobId: 'test-job-1',
-        input: { prompt: 'test prompt' }
+        input: { prompt: 'test prompt' },
+        metadata: { test: true }
       });
       
       expect(result.clientJobId).toBe('test-job-1');

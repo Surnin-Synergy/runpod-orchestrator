@@ -47,16 +47,16 @@ async function demonstrateGenericTyping() {
   // Set up event listeners with typed metadata
   orchestrator.on('submitted', (payload) => {
     console.log('Job submitted:', payload.clientJobId);
-    // TypeScript now knows payload.metadata is of type CustomMetadata | undefined
-    if (payload.metadata) {
-      console.log('User ID:', payload.metadata.userId);
-      console.log('Priority:', payload.metadata.priority);
-      console.log('Tags:', payload.metadata.tags);
-    }
+    // TypeScript now knows payload.metadata is of type CustomMetadata (required)
+    console.log('User ID:', payload.metadata.userId);
+    console.log('Priority:', payload.metadata.priority);
+    console.log('Tags:', payload.metadata.tags);
   });
 
   orchestrator.on('progress', (payload) => {
     console.log('Job progress:', payload.clientJobId, 'status:', payload.status);
+    // TypeScript now knows payload.metadata is of type CustomMetadata (required)
+    console.log('User ID:', payload.metadata.userId);
     // TypeScript now knows payload.runpodStatus is of type RunpodStatus | undefined
     if (payload.runpodStatus) {
       console.log('RunPod job ID:', payload.runpodStatus.id);
@@ -67,9 +67,8 @@ async function demonstrateGenericTyping() {
 
   orchestrator.on('completed', (payload) => {
     console.log('Job completed:', payload.clientJobId);
-    if (payload.metadata) {
-      console.log('Completed job for user:', payload.metadata.userId);
-    }
+    // TypeScript now knows payload.metadata is of type CustomMetadata (required)
+    console.log('Completed job for user:', payload.metadata.userId);
     // TypeScript now knows payload.output is of type CustomOutput | undefined
     if (payload.output) {
       console.log('Result:', payload.output.result);
@@ -102,8 +101,8 @@ async function demonstrateGenericTyping() {
 
   // Get job with typed metadata and output
   const job = await orchestrator.get('typed-job-1');
-  if (job && job.metadata) {
-    // TypeScript knows job.metadata is of type CustomMetadata | undefined
+  if (job) {
+    // TypeScript knows job.metadata is of type CustomMetadata (required)
     console.log('Retrieved job metadata:', job.metadata);
     console.log('User priority:', job.metadata.priority);
   }

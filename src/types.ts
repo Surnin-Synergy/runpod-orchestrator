@@ -51,7 +51,7 @@ export interface SubmitOptions<TMetadata = Record<string, any>, TOutput = any> {
   clientJobId: string;
   input: unknown;
   inputHash?: string;
-  metadata?: TMetadata;
+  metadata: TMetadata;
 }
 
 export interface JobRecord<TMetadata = Record<string, any>, TOutput = any> {
@@ -71,14 +71,14 @@ export interface JobRecord<TMetadata = Record<string, any>, TOutput = any> {
   endpointId?: string;
   input?: string;
   inputHash?: string;
-  metadata?: TMetadata;
+  metadata: TMetadata;
 }
 
 export interface OrchestratorEvents<TMetadata = Record<string, any>, TOutput = any> {
-  submitted: (payload: { clientJobId: string; runpodJobId: string; metadata?: TMetadata }) => void;
-  progress: (payload: { clientJobId: string; status: RunpodTaskStatus; runpodStatus?: RunpodStatus; metadata?: TMetadata }) => void;
-  completed: (payload: { clientJobId: string; output: TOutput; runpodStatus?: RunpodStatus; metadata?: TMetadata }) => void;
-  failed: (payload: { clientJobId: string; error: any; status: RunpodTaskStatus; runpodStatus?: RunpodStatus; metadata?: TMetadata }) => void;
+  submitted: (payload: { clientJobId: string; runpodJobId: string; metadata: TMetadata }) => void;
+  progress: (payload: { clientJobId: string; status: RunpodTaskStatus; runpodStatus?: RunpodStatus; metadata: TMetadata }) => void;
+  completed: (payload: { clientJobId: string; output: TOutput; runpodStatus?: RunpodStatus; metadata: TMetadata }) => void;
+  failed: (payload: { clientJobId: string; error: any; status: RunpodTaskStatus; runpodStatus?: RunpodStatus; metadata: TMetadata }) => void;
 }
 
 // Typed EventEmitter interface for orchestrator events
@@ -95,7 +95,7 @@ export interface RunpodOrchestrator<TMetadata = Record<string, any>, TOutput = a
     output?: TOutput; 
     error?: any;
     runpodStatus?: RunpodStatus;
-    metadata?: TMetadata;
+    metadata: TMetadata;
   }>;
   get(clientJobId: string): Promise<JobRecord<TMetadata, TOutput> | null>;
   cancel(clientJobId: string): Promise<void>;

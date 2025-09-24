@@ -164,14 +164,15 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>, TOutput = a
     output?: TOutput; 
     error?: any;
     runpodStatus?: RunpodStatus;
-    metadata?: TMetadata;
+    metadata: TMetadata;
   }> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         cleanup();
         resolve({
           status: 'TIMED_OUT',
-          error: 'Operation timed out'
+          error: 'Operation timed out',
+          metadata: {} as TMetadata
         });
       }, timeoutMs);
       
@@ -181,7 +182,7 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>, TOutput = a
         this.off('failed', onFailed);
       };
       
-      const onCompleted = (payload: { clientJobId: string; output: TOutput; runpodStatus?: RunpodStatus; metadata?: TMetadata }) => {
+      const onCompleted = (payload: { clientJobId: string; output: TOutput; runpodStatus?: RunpodStatus; metadata: TMetadata }) => {
         if (payload.clientJobId === clientJobId) {
           cleanup();
           resolve({
@@ -193,7 +194,7 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>, TOutput = a
         }
       };
       
-      const onFailed = (payload: { clientJobId: string; error: any; status: string; runpodStatus?: RunpodStatus; metadata?: TMetadata }) => {
+      const onFailed = (payload: { clientJobId: string; error: any; status: string; runpodStatus?: RunpodStatus; metadata: TMetadata }) => {
         if (payload.clientJobId === clientJobId) {
           cleanup();
           resolve({
@@ -214,14 +215,14 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>, TOutput = a
               status: 'COMPLETED',
               output: job.output,
               runpodStatus: job.runpodStatus,
-              metadata: job.metadata
+              metadata: job.metadata || ({} as TMetadata)
             });
           } else {
             resolve({
               status: job.status as "FAILED"|"TIMED_OUT"|"CANCELED",
               error: job.error,
               runpodStatus: job.runpodStatus,
-              metadata: job.metadata
+              metadata: job.metadata || ({} as TMetadata)
             });
           }
           return;
