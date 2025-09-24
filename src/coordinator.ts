@@ -9,6 +9,7 @@ import {
   RunpodOrchestratorConfig,
   OrchestratorEvents,
   TypedEventEmitter,
+  RunpodStatus,
 } from "./types";
 import { TERMINAL_STATUSES } from "./constants";
 
@@ -279,7 +280,7 @@ export class Coordinator<TMetadata = Record<string, any>, TOutput = any> extends
   private async handleTerminalStatus(
     job: JobRecord<TMetadata, TOutput>,
     status: RunpodTaskStatus,
-    runpodStatus: any,
+    runpodStatus: RunpodStatus,
     lockToken: string
   ): Promise<void> {
     const { output, ...rest } = runpodStatus;
@@ -332,7 +333,7 @@ export class Coordinator<TMetadata = Record<string, any>, TOutput = any> extends
 
   private async handleInProgress(
     job: JobRecord<TMetadata, TOutput>,
-    runpodStatus: any,
+    runpodStatus: RunpodStatus,
     lockToken: string
   ): Promise<void> {
     // Update status to IN_PROGRESS if not already

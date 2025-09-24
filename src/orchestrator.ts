@@ -10,7 +10,8 @@ import {
   SubmitOptions, 
   JobRecord,
   OrchestratorEvents,
-  TypedEventEmitter
+  TypedEventEmitter,
+  RunpodStatus
 } from './types';
 import { DEFAULT_CONFIG, TERMINAL_STATUSES } from './constants';
 
@@ -162,7 +163,7 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>, TOutput = a
     status: "COMPLETED"|"FAILED"|"TIMED_OUT"|"CANCELED"; 
     output?: TOutput; 
     error?: any;
-    runpodStatus?: any;
+    runpodStatus?: RunpodStatus;
     metadata?: TMetadata;
   }> {
     return new Promise((resolve, reject) => {
@@ -180,7 +181,7 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>, TOutput = a
         this.off('failed', onFailed);
       };
       
-      const onCompleted = (payload: { clientJobId: string; output: TOutput; runpodStatus?: any; metadata?: TMetadata }) => {
+      const onCompleted = (payload: { clientJobId: string; output: TOutput; runpodStatus?: RunpodStatus; metadata?: TMetadata }) => {
         if (payload.clientJobId === clientJobId) {
           cleanup();
           resolve({
@@ -192,7 +193,7 @@ export class RunpodOrchestratorImpl<TMetadata = Record<string, any>, TOutput = a
         }
       };
       
-      const onFailed = (payload: { clientJobId: string; error: any; status: string; runpodStatus?: any; metadata?: TMetadata }) => {
+      const onFailed = (payload: { clientJobId: string; error: any; status: string; runpodStatus?: RunpodStatus; metadata?: TMetadata }) => {
         if (payload.clientJobId === clientJobId) {
           cleanup();
           resolve({

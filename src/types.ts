@@ -7,6 +7,15 @@ export type RunpodTaskStatus =
   | "TIMED_OUT" 
   | "CANCELED";
 
+export interface RunpodStatus {
+  id: string;
+  delayTime: number;
+  executionTime: number;
+  status: string;
+  workerId: string;
+  error?: any;
+}
+
 export interface RunpodOrchestratorConfig {
   instanceId?: string;
   redis: { url?: string } | { client: import("ioredis").Redis };
@@ -50,7 +59,7 @@ export interface JobRecord<TMetadata = Record<string, any>, TOutput = any> {
   status: RunpodTaskStatus;
   output?: TOutput;
   error?: any;
-  runpodStatus?: any;
+  runpodStatus?: RunpodStatus;
   createdAt: number;
   updatedAt: number;
   attempt?: number;
@@ -66,9 +75,9 @@ export interface JobRecord<TMetadata = Record<string, any>, TOutput = any> {
 
 export interface OrchestratorEvents<TMetadata = Record<string, any>, TOutput = any> {
   submitted: (payload: { clientJobId: string; runpodJobId: string; metadata?: TMetadata }) => void;
-  progress: (payload: { clientJobId: string; status: RunpodTaskStatus; runpodStatus?: any; metadata?: TMetadata }) => void;
-  completed: (payload: { clientJobId: string; output: TOutput; runpodStatus?: any; metadata?: TMetadata }) => void;
-  failed: (payload: { clientJobId: string; error: any; status: RunpodTaskStatus; runpodStatus?: any; metadata?: TMetadata }) => void;
+  progress: (payload: { clientJobId: string; status: RunpodTaskStatus; runpodStatus?: RunpodStatus; metadata?: TMetadata }) => void;
+  completed: (payload: { clientJobId: string; output: TOutput; runpodStatus?: RunpodStatus; metadata?: TMetadata }) => void;
+  failed: (payload: { clientJobId: string; error: any; status: RunpodTaskStatus; runpodStatus?: RunpodStatus; metadata?: TMetadata }) => void;
 }
 
 // Typed EventEmitter interface for orchestrator events
@@ -84,7 +93,7 @@ export interface RunpodOrchestrator<TMetadata = Record<string, any>, TOutput = a
     status: "COMPLETED"|"FAILED"|"TIMED_OUT"|"CANCELED"; 
     output?: TOutput; 
     error?: any;
-    runpodStatus?: any;
+    runpodStatus?: RunpodStatus;
     metadata?: TMetadata;
   }>;
   get(clientJobId: string): Promise<JobRecord<TMetadata, TOutput> | null>;
@@ -93,12 +102,8 @@ export interface RunpodOrchestrator<TMetadata = Record<string, any>, TOutput = a
   close(): Promise<void>;
 }
 
-export interface RunpodJobStatus {
-  id: string;
-  status: string;
-  output?: any;
-  error?: any;
-}
+// RunpodJobStatus is now the same as RunpodStatus
+export type RunpodJobStatus = RunpodStatus;
 
 export interface RunpodRunResponse {
   id: string;
