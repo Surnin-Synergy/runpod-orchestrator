@@ -95,7 +95,10 @@ describe('RunpodClient', () => {
 
       expect(result).toEqual({
         id: 'runpod-123',
+        delayTime: 0,
+        executionTime: 0,
         status: 'NOT_FOUND',
+        workerId: '',
         error: 'Job not found or expired'
       });
     });

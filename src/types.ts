@@ -13,6 +13,7 @@ export interface RunpodStatus {
   executionTime: number;
   status: string;
   workerId: string;
+  output?: any;
   error?: any;
 }
 

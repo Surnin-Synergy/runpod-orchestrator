@@ -56,7 +56,10 @@ export class RunpodClient {
       if (response.status === 404) {
         return {
           id: jobId,
+          delayTime: 0,
+          executionTime: 0,
           status: "NOT_FOUND",
+          workerId: "",
           error: "Job not found or expired",
         };
       }
